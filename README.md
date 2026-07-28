@@ -5,8 +5,12 @@ mountain residence, built with three.js. No build step, no assets — every
 texture is generated in canvas at boot.
 
 ## Run it
-Open `index.html` in any modern browser. The only network request is the
-three.js library from cdnjs; everything else is local.
+```
+npm install
+npm start        # serves on http://localhost:8080 and opens your browser
+```
+Or just open `index.html` directly — three.js is vendored locally in
+`vendor/`, so no network is required at all.
 
 ## Controls
 - **Play / space** — run the 412‑day schedule (≈112 s at 1×)
