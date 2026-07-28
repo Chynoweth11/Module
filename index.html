@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Aurora Ridge — Construction Time-lapse</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="ct">
+  <canvas id="ctv"></canvas>
+
+  <!-- cinematic frame -->
+  <div class="vig" aria-hidden="true"></div>
+
+  <div class="title">
+    <h1>Aurora Ridge Residence</h1>
+    <p>Construction time&#8209;lapse &middot; 412 days</p>
+  </div>
+
+  <!-- milestone banner -->
+  <div class="mile" id="ctMile"><em>&#10022;</em><span id="ctMileTxt"></span></div>
+
+  <!-- component caption -->
+  <div class="tag" id="ctTag">
+    <i id="ctTagX">&times;</i><b id="ctTagN"></b><span id="ctTagD"></span>
+  </div>
+
+  <!-- settings sheet -->
+  <div class="set" id="ctSet">
+    <div class="grp">
+      <label>Speed</label>
+      <div class="pills" id="ctSpd">
+        <button data-s="0.5">0.5&times;</button><button data-s="1" class="on">1&times;</button>
+        <button data-s="2">2&times;</button><button data-s="4">4&times;</button>
+      </div>
+    </div>
+    <div class="grp">
+      <label>Cutaway</label>
+      <div class="pills" id="ctCut">
+        <button data-c="auto" class="on">Auto</button><button data-c="on">On</button><button data-c="off">Off</button>
+      </div>
+    </div>
+    <div class="grp" style="padding:3px">
+      <div class="sw on" data-f="sun"><span>Sun &amp; sky cycle</span><i></i></div>
+      <div class="sw on" data-f="wx"><span>Weather</span><i></i></div>
+      <div class="sw on" data-f="people"><span>Crew &amp; equipment</span><i></i></div>
+    </div>
+  </div>
+
+  <!-- bottom control bar -->
+  <div class="bar">
+    <div class="meta">
+      <div class="phase"><em id="ctNum">01</em><b id="ctPhase">Contract &amp; design</b></div>
+      <div class="stamp">
+        <span class="dt" id="ctDate">&mdash;</span>
+        <span class="pc"><i id="ctPct" style="font-style:normal">0</i><s>%</s></span>
+      </div>
+    </div>
+    <div class="row">
+      <button class="play" id="ctPlay" aria-label="Play"><svg viewBox="0 0 24 24" id="ctIcon"><path d="M7 4l13 8-13 8z"/></svg></button>
+      <div class="track" id="ctTrack">
+        <div class="rail" id="ctRail"><div class="fill" id="ctFill"></div></div>
+        <div class="knob" id="ctKnob"></div>
+        <div class="hint" id="ctHint"></div>
+      </div>
+      <button class="gear" id="ctGear" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M3 7h9a3 3 0 0 1 6 0h3v2h-3a3 3 0 0 1-6 0H3V7zm0 8h3a3 3 0 0 1 6 0h9v2h-9a3 3 0 0 1-6 0H3v-2z"/></svg></button>
+    </div>
+  </div>
+
+  <!-- loader -->
+  <div class="boot" id="ctBoot">
+    <div><p id="ctBootMsg">Preparing site</p><u><b id="ctBootBar"></b></u></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- Load order matters: each file adds to the same shared scope. -->
+<script src="js/00-core.js"></script>
+<script src="js/10-textures.js"></script>
+<script src="js/20-scene.js"></script>
+<script src="js/30-plan.js"></script>
+<script src="js/40-build.js"></script>
+<script src="js/50-actors.js"></script>
+<script src="js/60-camera.js"></script>
+<script src="js/70-ui.js"></script>
+<script src="js/80-main.js"></script>
+</body>
+</html>

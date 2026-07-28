@@ -1,0 +1,156 @@
+/* ─────────────────────────────────────────────────────────────────
+   Aurora Ridge — UI styles
+   Everything is scoped under #ct so this can be dropped into an
+   existing page without colliding with the host stylesheet.
+   ───────────────────────────────────────────────────────────────── */
+html,body{margin:0;height:100%;background:#0a0c0e}
+#ct{position:relative;width:100%;height:100vh;height:100dvh;overflow:hidden;background:#0a0c0e;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  color:#eef2f5;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;
+  --brass:#d4a860; --line:rgba(255,255,255,.13); --glass:rgba(14,17,20,.72); --fog:#9fadb9;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace}
+#ct *{box-sizing:border-box}
+#ct canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#ct canvas.drag{cursor:grabbing}
+#ct button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+#ct button:focus-visible{outline:2px solid var(--brass);outline-offset:2px;border-radius:6px}
+@media (prefers-reduced-motion:reduce){#ct *{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+
+/* ── cinematic vignette ─────────────────────────────────── */
+#ct .vig{position:absolute;inset:0;z-index:4;pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 50% 42%,transparent 58%,rgba(4,6,9,.38) 100%),
+    linear-gradient(to bottom,rgba(4,6,9,.30),transparent 16%)}
+
+/* ── title ──────────────────────────────────────────────── */
+#ct .title{position:absolute;top:22px;left:24px;z-index:6;pointer-events:none;
+  opacity:0;animation:ctIn .9s .5s forwards}
+#ct .title h1{margin:0;font-size:15px;font-weight:600;letter-spacing:.01em;
+  text-shadow:0 1px 14px rgba(0,0,0,.6)}
+#ct .title p{margin:3px 0 0;font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--fog);text-shadow:0 1px 10px rgba(0,0,0,.6)}
+@keyframes ctIn{to{opacity:1}}
+
+/* ── milestone banner ───────────────────────────────────── */
+#ct .mile{position:absolute;top:22px;left:50%;z-index:7;transform:translate(-50%,-8px);
+  display:flex;align-items:center;gap:9px;background:var(--glass);border:1px solid var(--line);
+  border-radius:99px;padding:8px 16px 8px 12px;backdrop-filter:blur(18px) saturate(1.3);
+  -webkit-backdrop-filter:blur(18px) saturate(1.3);box-shadow:0 10px 34px rgba(0,0,0,.45);
+  opacity:0;pointer-events:none;transition:opacity .3s,transform .3s cubic-bezier(.32,.72,0,1)}
+#ct .mile.on{opacity:1;transform:translate(-50%,0)}
+#ct .mile em{font-style:normal;color:var(--brass);font-size:13px}
+#ct .mile span{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase}
+
+/* ── component caption ──────────────────────────────────── */
+#ct .tag{position:absolute;left:50%;bottom:118px;z-index:7;transform:translate(-50%,10px);
+  max-width:min(420px,calc(100% - 40px));background:var(--glass);border:1px solid var(--line);
+  border-radius:10px;padding:11px 38px 12px 14px;backdrop-filter:blur(20px) saturate(1.3);
+  -webkit-backdrop-filter:blur(20px) saturate(1.3);opacity:0;pointer-events:none;
+  transition:opacity .22s,transform .22s;box-shadow:0 10px 40px rgba(0,0,0,.4)}
+#ct .tag.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+#ct .tag b{display:block;font-size:12.5px;font-weight:600;margin-bottom:3px}
+#ct .tag span{display:block;font-size:11.5px;line-height:1.5;color:var(--fog)}
+#ct .tag i{position:absolute;top:8px;right:9px;width:22px;height:22px;border-radius:50%;
+  display:grid;place-items:center;font-style:normal;font-size:15px;color:var(--fog);cursor:pointer}
+#ct .tag i:hover{color:#fff;background:rgba(255,255,255,.09)}
+
+/* ── bottom control bar ─────────────────────────────────── */
+#ct .bar{position:absolute;left:0;right:0;bottom:0;z-index:8;padding:0 20px 18px;
+  background:linear-gradient(to top,rgba(6,8,10,.86) 22%,rgba(6,8,10,0));
+  opacity:0;animation:ctIn .9s .7s forwards}
+#ct .row{display:flex;align-items:center;gap:16px;max-width:1180px;margin:0 auto}
+#ct .meta{display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+  max-width:1180px;margin:0 auto 9px;padding:0 2px}
+#ct .phase{display:flex;align-items:baseline;gap:9px;min-width:0}
+#ct .phase em{font-family:var(--mono);font-style:normal;font-size:10px;color:var(--brass);
+  letter-spacing:.1em;flex:0 0 auto}
+#ct .phase b{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ct .stamp{display:flex;align-items:baseline;gap:12px;flex:0 0 auto;font-family:var(--mono)}
+#ct .stamp .dt{font-size:12px;color:var(--fog);letter-spacing:.04em}
+#ct .stamp .pc{font-size:15px;color:var(--brass);font-variant-numeric:tabular-nums}
+#ct .stamp .pc s{text-decoration:none;font-size:10px;opacity:.65}
+
+#ct .play{flex:0 0 auto;width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.1);
+  border:1px solid var(--line);display:grid;place-items:center;transition:.16s;backdrop-filter:blur(12px)}
+#ct .play:hover{background:rgba(255,255,255,.18);transform:scale(1.05)}
+#ct .play:active{transform:scale(.96)}
+#ct .play svg{width:15px;height:15px;fill:#fff;margin-left:1px}
+#ct .play.playing svg{margin-left:0}
+
+#ct .track{position:relative;flex:1;height:30px;cursor:pointer;touch-action:none;min-width:0}
+#ct .rail{position:absolute;left:0;right:0;top:13px;height:4px;border-radius:3px;
+  background:rgba(255,255,255,.16);overflow:hidden}
+#ct .seg{position:absolute;top:0;bottom:0;opacity:.5}
+#ct .fill{position:absolute;left:0;top:0;bottom:0;background:var(--brass);border-radius:3px;
+  box-shadow:0 0 12px rgba(212,168,96,.55)}
+#ct .knob{position:absolute;top:15px;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;
+  background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.55);transition:transform .16s;pointer-events:none}
+#ct .track:hover .knob,#ct .track.act .knob{transform:scale(1.28)}
+#ct .mk{position:absolute;top:9px;width:2px;height:12px;margin-left:-1px;border-radius:1px;
+  background:rgba(255,255,255,.42);pointer-events:none;transition:background .3s}
+#ct .mk.hit{background:var(--brass)}
+#ct .hint{position:absolute;bottom:26px;transform:translateX(-50%);white-space:nowrap;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;background:rgba(20,24,28,.95);
+  border:1px solid var(--line);border-radius:5px;padding:4px 8px;opacity:0;transition:.15s;
+  pointer-events:none;z-index:3}
+#ct .track:hover .hint{opacity:1}
+
+#ct .gear{flex:0 0 auto;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;
+  color:var(--fog);transition:.16s}
+#ct .gear:hover{color:#fff;background:rgba(255,255,255,.1)}
+#ct .gear svg{width:17px;height:17px;fill:currentColor}
+
+/* ── settings sheet ─────────────────────────────────────── */
+#ct .set{position:absolute;right:20px;bottom:96px;z-index:9;width:236px;background:var(--glass);
+  border:1px solid var(--line);border-radius:13px;padding:6px;backdrop-filter:blur(22px) saturate(1.3);
+  -webkit-backdrop-filter:blur(22px) saturate(1.3);box-shadow:0 14px 50px rgba(0,0,0,.5);
+  opacity:0;transform:translateY(8px) scale(.97);transform-origin:bottom right;pointer-events:none;
+  transition:.2s cubic-bezier(.32,.72,0,1)}
+#ct .set.on{opacity:1;transform:none;pointer-events:auto}
+#ct .set .grp{padding:8px 9px 9px}
+#ct .set .grp+.grp{border-top:1px solid rgba(255,255,255,.08)}
+#ct .set label{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.17em;
+  text-transform:uppercase;color:var(--fog);margin-bottom:7px}
+#ct .pills{display:flex;gap:3px}
+#ct .pills button{flex:1;padding:6px 2px;border-radius:7px;font-size:11px;color:var(--fog);
+  background:rgba(255,255,255,.06);transition:.14s;font-variant-numeric:tabular-nums}
+#ct .pills button:hover{background:rgba(255,255,255,.13);color:#fff}
+#ct .pills button.on{background:var(--brass);color:#12161a;font-weight:600}
+#ct .sw{display:flex;align-items:center;justify-content:space-between;padding:7px 9px;
+  border-radius:8px;cursor:pointer;transition:.14s}
+#ct .sw:hover{background:rgba(255,255,255,.06)}
+#ct .sw span{font-size:12px}
+#ct .sw i{width:32px;height:19px;border-radius:10px;background:rgba(255,255,255,.16);
+  position:relative;transition:.2s;flex:0 0 32px}
+#ct .sw i:after{content:"";position:absolute;top:2.5px;left:2.5px;width:14px;height:14px;
+  border-radius:50%;background:#fff;transition:.2s cubic-bezier(.32,.72,0,1)}
+#ct .sw.on i{background:var(--brass)}
+#ct .sw.on i:after{left:15.5px}
+
+/* ── loader ─────────────────────────────────────────────── */
+#ct .boot{position:absolute;inset:0;z-index:20;background:#0a0c0e;display:grid;place-items:center;
+  transition:opacity .7s}
+#ct .boot.gone{opacity:0;pointer-events:none}
+#ct .boot div{width:190px;text-align:center}
+#ct .boot p{margin:0 0 16px;font-family:var(--mono);font-size:9.5px;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--fog)}
+#ct .boot u{display:block;height:1px;background:rgba(255,255,255,.14);text-decoration:none;position:relative}
+#ct .boot u b{position:absolute;left:0;top:0;bottom:0;width:4%;background:var(--brass);
+  animation:ctLoad 2.2s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes ctLoad{from{width:4%}to{width:88%}}
+
+@media (max-width:720px){
+  #ct .title{top:16px;left:16px}
+  #ct .title h1{font-size:13.5px}
+  #ct .mile{top:auto;bottom:150px}
+  #ct .bar{padding:0 12px 12px}
+  #ct .meta{margin-bottom:7px}
+  #ct .phase b{font-size:12px}
+  #ct .stamp .dt{font-size:10.5px}
+  #ct .stamp .pc{font-size:13px}
+  #ct .row{gap:10px}
+  #ct .play{width:38px;height:38px}
+  #ct .set{right:12px;left:12px;width:auto;bottom:86px}
+  #ct .tag{bottom:104px}
+  #ct .hint{display:none}
+}
