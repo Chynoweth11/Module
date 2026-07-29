@@ -163,24 +163,31 @@ function buildTextures() {
     bakePainted('stone', c, n, 4.2);
   })();
   /* stucco — fine sand float finish */
-  const sf = noiseField(128, 32, 2, 61), sb = noiseField(128, 5, 2, 62);
-  surface('stucco', 128, (D, H, n) => {
-    for (let i = 0; i < n * n; i++) {
-      const k = .90 + (sf[i] - .5) * .13 + (sb[i] - .5) * .05;
-      H[i] = sf[i];
-      px(D, i, k, k * .985, k * .955);
-    }
-  }, 1.4);
-  /* slate — mottled, faintly cleft */
-  const qf = noiseField(128, 5, 3, 71), qs = noiseField(128, 26, 2, 72);
-  surface('slate', 128, (D, H, n) => {
+  const sf = noiseField(256, 58, 2, 61), sb = noiseField(256, 7, 3, 62), sw = noiseField(256, 19, 2, 63);
+  surface('stucco', 256, (D, H, n) => {
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
       const i = y * n + x;
-      const k = .58 + (qf[i] - .5) * .30 + (qs[i] - .5) * .10;
-      H[i] = qf[i] * .7 + qs[i] * .3;
-      px(D, i, k * .93, k * .98, k * 1.04);
+      /* sand grain + a slow trowel swirl so raking light has something to find */
+      const swirl = Math.sin((x * .11 + sw[i] * 5.2)) * .5 + .5;
+      const k = .90 + (sf[i] - .5) * .085 + (sb[i] - .5) * .045 + (swirl - .5) * .022;
+      H[i] = sf[i] * .62 + sw[i] * .28 + sb[i] * .10;
+      px(D, i, k, k * .987, k * .958);
     }
-  }, 1.6);
+  }, 2.4);
+  /* slate — mottled, faintly cleft */
+  const qf = noiseField(256, 6, 3, 71), qs = noiseField(256, 34, 2, 72), qc = noiseField(256, 3, 2, 73);
+  surface('slate', 256, (D, H, n) => {
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const i = y * n + x;
+      /* cleaving planes run with the bed, so band the height along y */
+      const cleft = Math.abs(Math.sin(y * .42 + qf[i] * 3.1));
+      const k = .55 + (qf[i] - .5) * .34 + (qs[i] - .5) * .13 + cleft * .05;
+      H[i] = qf[i] * .55 + qs[i] * .25 + cleft * .20;
+      /* purple-grey through green-grey, the way a graduated roof reads */
+      const warm = qc[i];
+      px(D, i, k * (.90 + warm * .10), k * (.97 - warm * .04), k * (1.06 - warm * .10));
+    }
+  }, 2.8);
   /* brushed metal */
   const mf = noiseField(128, 64, 2, 81);
   surface('metal', 128, (D, H, n) => {
@@ -213,14 +220,17 @@ function buildTextures() {
     bakePainted('gravel', c, n, 3.4);
   })();
   /* ground detail — near-white so terrain vertex colours still read */
-  const gf = noiseField(256, 5, 3, 111), gd = noiseField(256, 40, 2, 112);
-  surface('ground', 256, (D, H, n) => {
-    for (let i = 0; i < n * n; i++) {
-      const k = .84 + gf[i] * .30 + (gd[i] - .5) * .16;
-      H[i] = gf[i] * .5 + gd[i] * .5;
-      px(D, i, k, k * 1.01, k * .96);
+  const gf = noiseField(512, 6, 4, 111), gd = noiseField(512, 74, 2, 112), gc = noiseField(512, 24, 3, 113);
+  surface('ground', 512, (D, H, n) => {
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const i = y * n + x;
+      /* fine blade-scale detail over a slow clumping term */
+      const blade = (gd[i] - .5) * .26 + Math.sin(x * 1.7 + gc[i] * 8) * .035;
+      const k = .80 + gf[i] * .34 + blade + (gc[i] - .5) * .12;
+      H[i] = gf[i] * .34 + gd[i] * .46 + gc[i] * .20;
+      px(D, i, k * .99, k * 1.02, k * .94);
     }
-  }, 2.6);
+  }, 3.4);
   /* insulation batt — fibrous */
   const ff = noiseField(128, 32, 2, 121);
   surface('fiber', 128, (D, H, n) => {

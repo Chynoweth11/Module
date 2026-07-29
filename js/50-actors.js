@@ -1,27 +1,47 @@
 /* ═════════════════════════════════════════════════════════════════
-   50 · actors — hologram, equipment, crew, temporary facilities,
-   weather & dust particles. Everything here is scheduled off the
-   same project time T as the building itself.
+   50 · actors — crew, equipment, temporary facilities, particles.
+
+   Crew is fully instanced: every worker on site is drawn in eight
+   draw calls total instead of eight meshes and eight materials per
+   person. Workers are stationed at real work, in PPE, and kept out
+   of equipment swing radii.
    ═════════════════════════════════════════════════════════════════ */
 
-/* ── unique (non-instanced) objects ── */
+/* ── shared material cache: equipment used to allocate a fresh
+      MeshStandardMaterial per box, which is hundreds of programs ── */
+const _MATC = {};
+function pmat(col, rough, met, opts) {
+  opts = opts || {};
+  const key = col + '|' + rough + '|' + (met || 0) + '|' + (opts.o || 1) + '|' + (opts.e || 0) + '|' + (opts.env === undefined ? 'd' : opts.env);
+  let m = _MATC[key];
+  if (!m) {
+    m = new TH.MeshStandardMaterial({
+      color: col, roughness: rough === undefined ? .68 : rough, metalness: met || 0,
+      envMapIntensity: opts.env === undefined ? .7 : opts.env,
+      transparent: opts.o !== undefined && opts.o < 1, opacity: opts.o === undefined ? 1 : opts.o,
+      emissive: opts.e || 0x000000, emissiveIntensity: opts.ei || 0
+    });
+    _MATC[key] = m;
+  }
+  return m;
+}
 const UO = [];
 function addU(obj, o) { o.obj = obj; UO.push(o); scene.add(obj); return o; }
 function box(w, h, dp, col, x, y, z, rough, met) {
-  const m = new TH.Mesh(new TH.BoxGeometry(w, h, dp),
-    new TH.MeshStandardMaterial({ color: col, roughness: rough === undefined ? .68 : rough, metalness: met || 0, envMapIntensity: .8 }));
-  m.position.set(x || 0, y || 0, z || 0); m.castShadow = true; m.receiveShadow = true;
+  const m = new TH.Mesh(geoBox, pmat(col, rough, met));
+  m.scale.set(w, h, dp);
+  m.position.set(x || 0, y || 0, z || 0);
+  m.castShadow = true; m.receiveShadow = true;
   return m;
 }
 function cyl(r1, r2, h, col, rough, met) {
-  const m = new TH.Mesh(new TH.CylinderGeometry(r1, r2, h, 16),
-    new TH.MeshStandardMaterial({ color: col, roughness: rough === undefined ? .55 : rough, metalness: met || 0, envMapIntensity: .9 }));
+  const m = new TH.Mesh(new TH.CylinderGeometry(r1, r2, h, 14), pmat(col, rough === undefined ? .55 : rough, met));
   m.castShadow = true; return m;
 }
-const YEL = 0xd8a13c, DRK = 0x22262a, STL = 0x8d949b, GLS = 0x223642;
+const YEL = 0xd8a13c, DRK = 0x24282c, STL = 0x8d949b, GLS = 0x22323c;
+const HIVIS = 0xd8e04a, HIVIS2 = 0xe8823a;
 
-/* design & permit hologram — the house appears as wireframe intent
-   during pre-construction, then dissolves as the survey begins */
+/* ═══════════════ DESIGN HOLOGRAM & PERMIT BOARD ═════════════════ */
 (function hologram() {
   const g = new TH.Group();
   const mat = new TH.LineBasicMaterial({ color: 0xd4a860, transparent: true, opacity: .85 });
@@ -59,11 +79,14 @@ const YEL = 0xd8a13c, DRK = 0x22262a, STL = 0x8d949b, GLS = 0x223642;
       g.position.y = (1 - easeOut(sat(u))) * 3 - v * 4;
     }
   });
-  /* permit board goes up when the permit is issued, comes down at closeout */
+  /* permit board + site rules, posted where the job is entered */
   const pl = new TH.Group();
   pl.add(box(.4, 5, .4, 0x6b5b45, -1.6, 2.5, 0), box(.4, 5, .4, 0x6b5b45, 1.6, 2.5, 0));
   pl.add(box(5, 3.4, .18, 0xe8e3d4, 0, 6, 0));
   pl.add(box(4.2, .3, .22, 0xd4a860, 0, 7, .02));
+  pl.add(box(2.4, 2.6, .16, 0xe0b32c, 3.6, 5.4, 0));
+  pl.add(box(2.4, 2.6, .16, 0xd8402c, -3.6, 5.4, 0));
+  pl.userData.meta = { n: 'Permit & site safety board', s: 'site', d: 'Building permit, inspection card, emergency contacts, the site safety plan and the PPE requirement posted where every visitor passes.' };
   pl.position.set(-14, 0, -34); pl.rotation.y = .35;
   addU(pl, {
     t0: PH.permit.t1 - .004, t1: PH.permit.t1, x0: PH.closeout.t0, x1: PH.closeout.t0 + .01, l: 'site',
@@ -75,129 +98,178 @@ const YEL = 0xd8a13c, DRK = 0x22262a, STL = 0x8d949b, GLS = 0x223642;
 function tracks(len, w) {
   const g = new TH.Group();
   [-1, 1].forEach(s => {
-    g.add(box(len, 1.9, 2.2, DRK, 0, .95, s * (w / 2), .9));
-    for (let i = 0; i < 6; i++) g.add(box(.35, 2.3, 2.5, 0x181b1e, -len / 2 + 1 + i * (len - 2) / 5, 1, s * (w / 2), .95));
+    g.add(box(len, 1.7, 2.1, DRK, 0, 1.05, s * (w / 2), .9));
+    g.add(box(len * .96, 1.05, 2.35, 0x33383d, 0, 1.0, s * (w / 2), .82));
+    for (let i = 0; i < 7; i++) g.add(box(.3, 2.1, 2.5, 0x191c1f, -len / 2 + .8 + i * (len - 1.6) / 6, 1.0, s * (w / 2), .95));
   });
   return g;
 }
 function glassPane(w, h, dp, x, y, z) {
-  const m = box(w, h, dp, GLS, x, y, z, .1, .3);
-  m.material.transparent = true; m.material.opacity = .55; m.material.envMapIntensity = 2;
+  const m = box(w, h, dp, GLS, x, y, z, .12, .25);
+  m.material = pmat(GLS, .12, .25, { o: .5, env: 1.8 });
+  return m;
+}
+/* ROPS/FOPS cage — every cab on site has one */
+function cage(w, h, dp, x, y, z, col) {
+  const g = new TH.Group();
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(c => g.add(box(.22, h, .22, col, c[0] * w / 2, 0, c[1] * dp / 2, .5, .3)));
+  g.add(box(w + .3, .24, dp + .3, col, 0, h / 2, 0, .5, .3));
+  g.position.set(x, y, z);
+  return g;
+}
+function beacon(x, y, z) {
+  const m = new TH.Mesh(new TH.CylinderGeometry(.26, .3, .5, 10), pmat(0xffa723, .35, 0, { e: 0xff8a12, ei: 2.4 }));
+  m.position.set(x, y, z);
   return m;
 }
 function mkExcavator() {
   const g = new TH.Group();
-  g.add(tracks(11, 6.4));
-  const house = new TH.Group(); house.position.y = 2.1; g.add(house);
-  house.add(box(9, 3.4, 6.2, YEL, -.6, 1.7, 0, .5, .15));
-  house.add(box(3.4, 4.2, 4.6, YEL, 2.6, 2.1, -.6, .45, .15));
-  house.add(glassPane(3.0, 2.6, 4.0, 2.7, 2.9, -.6));
-  house.add(box(2.4, 3.2, 6.2, 0x2b2f34, -4.6, 1.6, 0, .8));
-  const boom = new TH.Group(); boom.position.set(3.6, 2.2, 1.6); house.add(boom);
-  boom.add(box(12, 1.5, 1.4, YEL, 6, 0, 0, .45, .2));
+  g.add(tracks(11.5, 6.6));
+  const house = new TH.Group(); house.position.y = 2.05; g.add(house);
+  house.add(box(9, 3.2, 6.0, YEL, -.6, 1.6, 0, .48, .18));
+  house.add(box(9.2, .5, 6.2, 0x2b2f34, -.6, 3.3, 0, .6, .3));
+  house.add(box(3.2, 4.4, 4.4, YEL, 2.7, 2.2, -.7, .45, .18));
+  house.add(glassPane(3.0, 3.0, 4.5, 2.75, 2.7, -.7));
+  house.add(cage(3.4, 4.6, 4.6, 2.7, 2.3, -.7, 0x3a3f45));
+  house.add(box(2.6, 3.4, 6.2, 0x2b2f34, -4.7, 1.5, 0, .8));
+  house.add(beacon(1.2, 4.9, -.7));
+  const boom = new TH.Group(); boom.position.set(3.6, 2.2, 1.5); house.add(boom);
+  boom.add(box(12, 1.5, 1.3, YEL, 6, 0, 0, .45, .2));
+  boom.add(cyl(.42, .42, 1.6, 0x9aa1a8, .3, .8)).rotation.x = Math.PI / 2;
   const stick = new TH.Group(); stick.position.set(12, 0, 0); boom.add(stick);
   stick.add(box(8, 1.1, 1.0, YEL, 4, 0, 0, .45, .2));
   const bk = new TH.Group(); bk.position.set(8, 0, 0); stick.add(bk);
   bk.add(box(2.6, 2.6, 3.2, 0x36393d, 1, -.9, 0, .55, .5));
-  for (let i = 0; i < 5; i++) bk.add(box(.9, .5, .35, 0x9a9da0, 2.3, -1.9, -1.3 + i * .65, .45, .6));
-  g.userData = { house, boom, stick, bk };
+  for (let i = 0; i < 5; i++) bk.add(box(.9, .5, .32, 0x9a9da0, 2.3, -1.9, -1.3 + i * .65, .42, .65));
+  g.userData = { house, boom, stick, bk, swing: 22 };
   return g;
 }
 function mkDozer() {
   const g = new TH.Group();
-  g.add(tracks(10, 6.2));
-  g.add(box(7, 3.2, 5.4, YEL, -.5, 3.2, 0, .5, .15));
-  g.add(box(3.2, 3.4, 4.4, YEL, -3, 4.6, 0, .45, .15));
-  g.add(glassPane(2.8, 2.4, 4.0, -3, 5, 0));
-  const bl = new TH.Group(); bl.position.set(6.4, 1.6, 0); g.add(bl);
-  bl.add(box(.9, 4.4, 11, 0xa7adb3, 0, 0, 0, .28, .75));
-  bl.add(box(2.6, .8, 11, 0xa7adb3, -1.2, -1.8, 0, .35, .6));
+  g.add(tracks(10.5, 6.4));
+  g.add(box(7, 3.0, 5.2, YEL, -.5, 3.2, 0, .5, .18));
+  g.add(box(3.0, 3.4, 4.2, YEL, -3, 4.6, 0, .45, .18));
+  g.add(glassPane(2.9, 2.6, 4.3, -3, 4.9, 0));
+  g.add(cage(3.4, 3.8, 4.5, -3, 4.7, 0, 0x3a3f45));
+  g.add(beacon(-4.6, 6.8, 0));
+  const bl = new TH.Group(); bl.position.set(6.4, 1.7, 0); g.add(bl);
+  bl.add(box(.85, 4.4, 11, 0xa7adb3, 0, 0, 0, .3, .7));
+  bl.add(box(2.6, .8, 11, 0x9aa1a8, -1.2, -1.8, 0, .38, .6));
+  [-1, 1].forEach(s => bl.add(box(.4, 3.4, .4, 0x8d949b, -.6, .4, s * 3.4, .4, .6)));
   g.add(box(5, .5, .5, STL, 2.6, 2.6, 2.4, .45, .7), box(5, .5, .5, STL, 2.6, 2.6, -2.4, .45, .7));
-  g.userData = { bl };
+  g.userData = { bl, swing: 13 };
   return g;
 }
 function mkTele() {
   const g = new TH.Group();
-  g.add(box(12, 3.6, 6, 0xc8552f, 0, 3.4, 0, .5, .18));
+  g.add(box(12, 3.4, 6, 0xc8552f, 0, 3.4, 0, .5, .2));
   [-1, 1].forEach(s => [-3.6, 3.6].forEach(x => {
-    const w = cyl(1.9, 1.9, 1.6, 0x1b1e21, .9); w.rotation.x = Math.PI / 2; w.position.set(x, 1.9, s * 3.1); g.add(w);
+    const w = cyl(1.9, 1.9, 1.7, 0x1b1e21, .9); w.rotation.x = Math.PI / 2; w.position.set(x, 1.9, s * 3.1); g.add(w);
   }));
-  g.add(box(3.2, 3.6, 3.4, 0xc8552f, -2.6, 6.6, -1.2, .45, .18));
-  g.add(glassPane(2.8, 2.8, 3.0, -2.6, 6.9, -1.2));
+  g.add(box(3.2, 3.6, 3.3, 0xc8552f, -2.6, 6.6, -1.2, .45, .2));
+  g.add(glassPane(2.9, 3.0, 3.4, -2.6, 6.8, -1.2));
+  g.add(cage(3.5, 3.9, 3.6, -2.6, 6.7, -1.2, 0x3a3f45));
+  g.add(beacon(-4.4, 8.9, -1.2));
+  /* outriggers — down whenever it is lifting */
+  const og = new TH.Group(); g.add(og);
+  [-1, 1].forEach(s => {
+    const o = box(1.0, 3.2, 1.0, 0x9aa1a8, 5.2, 1.4, s * 3.4, .5, .5);
+    og.add(o);
+    og.add(box(2.6, .5, 2.6, 0x6f767e, 5.2, .1, s * 3.4, .7));
+  });
   const boom = new TH.Group(); boom.position.set(-4.5, 5.4, 1.4); g.add(boom);
-  boom.add(box(14, 1.8, 1.8, 0xd8dcdf, 7, 0, 0, .4, .5));
+  boom.add(box(14, 1.8, 1.7, 0xd8dcdf, 7, 0, 0, .4, .45));
   const ext = new TH.Group(); ext.position.set(13, 0, 0); boom.add(ext);
-  ext.add(box(9, 1.3, 1.3, 0xb4bac0, 4.5, 0, 0, .4, .5));
+  ext.add(box(9, 1.3, 1.2, 0xb4bac0, 4.5, 0, 0, .4, .45));
   const forks = new TH.Group(); forks.position.set(9, 0, 0); ext.add(forks);
-  forks.add(box(.5, 3, 3.2, STL, 0, -.8, 0, .45, .7));
-  const load = new TH.Group(); load.position.set(2.2, -1.6, 0); forks.add(load);
-  load.add(box(4.4, 1.4, 6, 0xd6ae74, 0, 0, 0, .85));
-  g.userData = { boom, ext, forks, load };
+  forks.add(box(.5, 3, 3.2, STL, 0, -.8, 0, .45, .65));
+  const load = new TH.Group(); load.position.set(2.2, -1.5, 0); forks.add(load);
+  load.add(box(4.4, 1.3, 6, 0xd6ae74, 0, 0, 0, .85));
+  /* load is banded to the pallet, as it must be */
+  load.add(box(4.6, .12, .3, 0x2b2f34, 0, .1, -1.6, .6), box(4.6, .12, .3, 0x2b2f34, 0, .1, 1.6, .6));
+  g.userData = { boom, ext, forks, load, swing: 16 };
   return g;
 }
 function mkMixer() {
   const g = new TH.Group();
   g.add(box(20, 3, 7, 0x2f3439, -1, 3.4, 0, .7));
-  g.add(box(6, 5.4, 7, 0xc2cad0, -8.6, 6.4, 0, .4, .35));
-  g.add(glassPane(5.4, 2.2, 6.4, -8.8, 7.8, 0));
-  const drum = cyl(3.4, 2.2, 12, 0xcbd1d6, .45, .45);
+  g.add(box(6, 5.2, 6.9, 0xc2cad0, -8.6, 6.4, 0, .4, .3));
+  g.add(glassPane(5.4, 2.3, 7.0, -8.8, 7.7, 0));
+  const drum = cyl(3.4, 2.2, 12, 0xcbd1d6, .45, .4);
   drum.rotation.z = Math.PI / 2 - .22; drum.position.set(1, 8.4, 0); g.add(drum);
-  const rib = cyl(3.5, 2.3, .5, 0x9aa1a8, .45, .5); rib.rotation.z = Math.PI / 2 - .22; rib.position.set(1, 8.4, 0); g.add(rib);
-  const chute = box(6, .5, 2.2, 0x9aa1a8, 9.4, 5.2, 0, .4, .55); chute.rotation.z = -.3; g.add(chute);
+  const rib = cyl(3.5, 2.3, .5, 0x9aa1a8, .45, .45); rib.rotation.z = Math.PI / 2 - .22; rib.position.set(1, 8.4, 0); g.add(rib);
+  const chute = box(6, .5, 2.2, 0x9aa1a8, 9.4, 5.2, 0, .4, .5); chute.rotation.z = -.3; g.add(chute);
+  g.add(beacon(-8.6, 9.2, 0));
   [-1, 1].forEach(s => [-7, 3, 6].forEach(x => {
-    const w = cyl(2, 2, 1.4, 0x1b1e21, .9); w.rotation.x = Math.PI / 2; w.position.set(x, 2, s * 3.4); g.add(w);
+    const w = cyl(2, 2, 1.5, 0x1b1e21, .9); w.rotation.x = Math.PI / 2; w.position.set(x, 2, s * 3.4); g.add(w);
   }));
-  g.userData = { drum, rib, chute };
+  g.userData = { drum, rib, chute, swing: 14 };
   return g;
 }
 function mkDump() {
   const g = new TH.Group();
-  g.add(box(9, 4, 8, 0x9c3f34, -8, 4.6, 0, .5, .2));
-  g.add(glassPane(7, 2.2, 7.4, -8, 6.2, 0));
+  g.add(box(9, 4, 8, 0x9c3f34, -8, 4.6, 0, .5, .22));
+  g.add(glassPane(7, 2.3, 7.6, -8, 6.2, 0));
   g.add(box(24, 1.6, 8, 0x2f3439, 2, 2.6, 0, .7));
+  g.add(beacon(-8, 7.1, 0));
   const bed = new TH.Group(); bed.position.set(12, 3.4, 0); g.add(bed);
-  bed.add(box(20, .8, 8.4, 0x99a0a7, -10, 0, 0, .5, .45));
-  [-1, 1].forEach(s => bed.add(box(20, 3.6, .6, 0x99a0a7, -10, 1.8, s * 4, .5, .45)));
-  bed.add(box(.6, 3.6, 8.4, 0x99a0a7, -20, 1.8, 0, .5, .45));
+  bed.add(box(20, .8, 8.4, 0x99a0a7, -10, 0, 0, .5, .4));
+  [-1, 1].forEach(s => bed.add(box(20, 3.6, .6, 0x99a0a7, -10, 1.8, s * 4, .5, .4)));
+  bed.add(box(.6, 3.6, 8.4, 0x99a0a7, -20, 1.8, 0, .5, .4));
+  /* tarped load — required for haul-off */
+  bed.add(box(19, .5, 8.0, 0x3f4a3a, -10, 2.0, 0, .95));
   [-1, 1].forEach(s => [-9, 6, 10, 14].forEach(x => {
-    const w = cyl(2.1, 2.1, 1.5, 0x1b1e21, .9); w.rotation.x = Math.PI / 2; w.position.set(x, 2.1, s * 3.8); g.add(w);
+    const w = cyl(2.1, 2.1, 1.6, 0x1b1e21, .9); w.rotation.x = Math.PI / 2; w.position.set(x, 2.1, s * 3.8); g.add(w);
   }));
-  g.userData = { bed };
+  g.userData = { bed, swing: 15 };
   return g;
 }
 function mkPickup(col) {
   const g = new TH.Group();
-  g.add(box(15, 2.6, 6.6, col, 0, 3.3, 0, .32, .35));
-  g.add(box(6, 3, 6.4, col, -1, 5.6, 0, .32, .35));
-  g.add(glassPane(5.4, 2, 6.5, -1, 6, 0));
-  g.add(box(7, 1.9, 6.6, col, 5.2, 5.2, 0, .36, .3));
+  g.add(box(15, 2.5, 6.4, col, 0, 3.3, 0, .3, .4));
+  g.add(box(6, 2.9, 6.2, col, -1, 5.6, 0, .3, .4));
+  g.add(glassPane(5.5, 2.1, 6.4, -1, 6, 0));
+  g.add(box(7, 1.9, 6.4, col, 5.2, 5.2, 0, .35, .35));
   [-1, 1].forEach(s => [-4.6, 4.4].forEach(x => {
-    const w = cyl(1.5, 1.5, 1.1, 0x1b1e21, .9); w.rotation.x = Math.PI / 2; w.position.set(x, 1.5, s * 3.4); g.add(w);
+    const w = cyl(1.5, 1.5, 1.2, 0x1b1e21, .9); w.rotation.x = Math.PI / 2; w.position.set(x, 1.5, s * 3.3); g.add(w);
   }));
+  g.userData = { swing: 9 };
   return g;
 }
 function mkLift() {
   const g = new TH.Group();
   g.add(box(8, 1.6, 5, 0x2b3035, 0, 1.6, 0, .7));
   [-1, 1].forEach(s => [-2.8, 2.8].forEach(x => {
-    const w = cyl(1.1, 1.1, .9, 0x1b1e21, .9); w.rotation.x = Math.PI / 2; w.position.set(x, 1.1, s * 2.4); g.add(w);
+    const w = cyl(1.1, 1.1, 1.0, 0x1b1e21, .9); w.rotation.x = Math.PI / 2; w.position.set(x, 1.1, s * 2.3); g.add(w);
   }));
   const mast = new TH.Group(); mast.position.y = 2.4; g.add(mast);
   for (let i = 0; i < 4; i++) mast.add(box(6.4 - i * .6, .4, 4 - i * .3, YEL, 0, i * .5, 0, .55, .2));
   const deck = new TH.Group(); deck.position.y = 2.4; g.add(deck);
-  deck.add(box(7, .3, 4.4, 0xb8bec4, 0, 0, 0, .5, .4));
-  [-1, 1].forEach(s => deck.add(box(7, 3.4, .2, YEL, 0, 1.7, s * 2.1, .55, .2)));
-  [-1, 1].forEach(s => deck.add(box(.2, 3.4, 4.4, YEL, s * 3.4, 1.7, 0, .55, .2)));
-  g.userData = { deck };
+  deck.add(box(7, .3, 4.4, 0xb8bec4, 0, 0, 0, .5, .35));
+  /* full guardrail: top rail, mid rail, toe board */
+  [-1, 1].forEach(s => {
+    deck.add(box(7, .16, .16, YEL, 0, 3.5, s * 2.1, .55, .2));
+    deck.add(box(7, .16, .16, YEL, 0, 1.9, s * 2.1, .55, .2));
+    deck.add(box(7, .5, .16, 0x2b3035, 0, .35, s * 2.1, .7));
+  });
+  [-1, 1].forEach(s => {
+    deck.add(box(.16, .16, 4.4, YEL, s * 3.4, 3.5, 0, .55, .2));
+    deck.add(box(.16, .16, 4.4, YEL, s * 3.4, 1.9, 0, .55, .2));
+    deck.add(box(.16, 3.6, .16, YEL, s * 3.4, 1.8, 2.1, .55, .2));
+    deck.add(box(.16, 3.6, .16, YEL, s * 3.4, 1.8, -2.1, .55, .2));
+  });
+  g.userData = { deck, swing: 8 };
   return g;
 }
 function mkRoller() {
   const g = new TH.Group();
-  g.add(box(7, 3, 5, YEL, 0, 4.2, 0, .5, .15));
-  const dr = cyl(2.6, 2.6, 6, 0x99a0a7, .35, .6); dr.rotation.x = Math.PI / 2; dr.position.set(4, 2.6, 0); g.add(dr);
-  const dr2 = cyl(2.4, 2.4, 6, 0x99a0a7, .35, .6); dr2.rotation.x = Math.PI / 2; dr2.position.set(-4, 2.4, 0); g.add(dr2);
-  g.add(box(2.6, 2.6, 3, YEL, 0, 6.6, 0, .45, .15));
-  g.userData = { dr, dr2 };
+  g.add(box(7, 2.8, 5, YEL, 0, 4.2, 0, .5, .18));
+  const dr = cyl(2.6, 2.6, 6, 0x99a0a7, .35, .55); dr.rotation.x = Math.PI / 2; dr.position.set(4, 2.6, 0); g.add(dr);
+  const dr2 = cyl(2.4, 2.4, 6, 0x99a0a7, .35, .55); dr2.rotation.x = Math.PI / 2; dr2.position.set(-4, 2.4, 0); g.add(dr2);
+  g.add(box(2.6, 2.6, 3, YEL, 0, 6.6, 0, .45, .18));
+  g.add(cage(3.0, 3.2, 3.4, 0, 6.9, 0, 0x3a3f45));
+  g.add(beacon(0, 8.7, 0));
+  g.userData = { dr, dr2, swing: 11 };
   return g;
 }
 
@@ -206,45 +278,45 @@ function equip(obj, cfg) { obj.visible = false; scene.add(obj); EQUIP.push(Objec
 (function placeEquipment() {
   const ex = mkExcavator();
   equip(ex, {
-    t0: PH.excavate.t0 - .004, t1: PH.underground.t1, name: 'Excavator', dusty: 1,
+    t0: PH.excavate.t0 - .004, t1: PH.underground.t1, name: 'Tracked excavator', dusty: 1,
     tick: (o) => {
       const path = [[-14, -14], [16, 10], [-6, 24], [24, -14]];
-      const k = (clock * .022) % 1;
+      const k = (clock * .020) % 1;
       const seg = Math.floor(k * 4) % 4, f = (k * 4) % 1;
       const a = path[seg], b = path[(seg + 1) % 4];
       const x = lerp(a[0], b[0], smooth(f)), z = lerp(a[1], b[1], smooth(f));
       o.position.set(x, groundY(x, z), z);
       o.rotation.y = Math.atan2(b[0] - a[0], b[1] - a[1]);
-      const c = clock * .8;
-      o.userData.house.rotation.y = Math.sin(c * .9) * 1.1;
-      o.userData.boom.rotation.z = -.28 + Math.sin(c * 2) * .30;
-      o.userData.stick.rotation.z = -.9 + Math.sin(c * 2 + 1.1) * .55;
-      o.userData.bk.rotation.z = .6 + Math.sin(c * 2 + 2.2) * .8;
+      const c = clock * .7;
+      o.userData.house.rotation.y = Math.sin(c * .8) * .95;
+      o.userData.boom.rotation.z = -.28 + Math.sin(c * 1.7) * .26;
+      o.userData.stick.rotation.z = -.9 + Math.sin(c * 1.7 + 1.1) * .48;
+      o.userData.bk.rotation.z = .6 + Math.sin(c * 1.7 + 2.2) * .7;
     }
   });
   const dz = mkDozer();
   equip(dz, {
     t0: PH.clearing.t0, t1: PH.slab.t0 + .01, name: 'Dozer', dusty: 1,
     tick: (o) => {
-      const t = (clock * .09) % 1, back = t > .5, u = back ? 1 - (t - .5) * 2 : t * 2;
-      const x = lerp(-44, 52, u), z = -12 + Math.sin(clock * .07) * 22;
+      const t = (clock * .08) % 1, back = t > .5, u = back ? 1 - (t - .5) * 2 : t * 2;
+      const x = lerp(-44, 52, u), z = -12 + Math.sin(clock * .06) * 20;
       o.position.set(x, groundY(x, z), z);
       o.rotation.y = back ? -Math.PI / 2 : Math.PI / 2;
-      o.userData.bl.rotation.z = Math.sin(clock * 1.6) * .08 - .05;
+      o.userData.bl.rotation.z = Math.sin(clock * 1.4) * .07 - .05;
     }
   });
   const dt = mkDump();
   equip(dt, {
     t0: PH.excavate.t0 + .004, t1: PH.slab.t0, name: 'Haul truck', dusty: 1,
     tick: (o) => {
-      const t = (clock * .05) % 1;
+      const t = (clock * .045) % 1;
       const path = [[-70, 6], [-30, -2], [6, -30], [-40, -44], [-70, 6]];
       const seg = Math.min(3, Math.floor(t * 4)), f = t * 4 - seg;
       const a = path[seg], b = path[seg + 1];
       const x = lerp(a[0], b[0], f), z = lerp(a[1], b[1], f);
       o.position.set(x, groundY(x, z), z);
       o.rotation.y = Math.atan2(b[0] - a[0], b[1] - a[1]);
-      o.userData.bed.rotation.z = t > .3 && t < .38 ? -Math.sin((t - .3) / .08 * Math.PI) * .55 : 0;
+      o.userData.bed.rotation.z = t > .3 && t < .38 ? -Math.sin((t - .3) / .08 * Math.PI) * .5 : 0;
     }
   });
   for (let i = 0; i < 2; i++) {
@@ -253,11 +325,11 @@ function equip(obj, cfg) { obj.visible = false; scene.add(obj); EQUIP.push(Objec
       t0: i ? PH.slab.t0 + .004 : PH.foundation.t0 + .01,
       t1: i ? PH.slab.t1 : PH.foundation.t1 - .01, name: 'Mixer truck',
       tick: (o) => {
-        const x = -40 + i * 16, z = -34 + Math.sin(clock * .12 + i) * 4;
+        const x = -40 + i * 16, z = -32 + Math.sin(clock * .1 + i) * 3;
         o.position.set(x, groundY(x, z), z);
         o.rotation.y = Math.PI * .5 + .3;
-        o.userData.drum.rotation.y += .05; o.userData.rib.rotation.y += .05;
-        o.userData.chute.rotation.y = Math.sin(clock * .4 + i) * .4;
+        o.userData.drum.rotation.y += .04; o.userData.rib.rotation.y += .04;
+        o.userData.chute.rotation.y = Math.sin(clock * .35 + i) * .35;
       }
     });
   }
@@ -265,13 +337,13 @@ function equip(obj, cfg) { obj.visible = false; scene.add(obj); EQUIP.push(Objec
   equip(th, {
     t0: PH.framing.t0, t1: PH.roofstruct.t1, name: 'Telehandler',
     tick: (o) => {
-      const x = 38 + Math.sin(clock * .1) * 10, z = -6 + Math.cos(clock * .08) * 16;
+      const x = 40 + Math.sin(clock * .09) * 8, z = -6 + Math.cos(clock * .07) * 14;
       o.position.set(x, groundY(x, z), z);
-      o.rotation.y = Math.PI + Math.sin(clock * .1) * .5;
-      const lift = Math.sin(clock * .35) * .5 + .5;
-      o.userData.boom.rotation.z = .12 + lift * .55;
-      o.userData.ext.position.x = 13 + lift * 7;
-      o.userData.forks.rotation.z = -(.12 + lift * .55);
+      o.rotation.y = Math.PI + Math.sin(clock * .09) * .45;
+      const lift = Math.sin(clock * .3) * .5 + .5;
+      o.userData.boom.rotation.z = .12 + lift * .5;
+      o.userData.ext.position.x = 13 + lift * 6.5;
+      o.userData.forks.rotation.z = -(.12 + lift * .5);
       o.userData.load.visible = lift > .12;
     }
   });
@@ -280,90 +352,246 @@ function equip(obj, cfg) { obj.visible = false; scene.add(obj); EQUIP.push(Objec
     equip(lf, {
       t0: PH.roughin.t0, t1: PH.interior.t1, name: 'Scissor lift', idx: i,
       tick: (o) => {
-        const x = -18 + i * 26 + Math.sin(clock * .12 + i * 2) * 8;
-        const z = 2 + Math.cos(clock * .1 + i * 3) * 14;
+        const x = -18 + i * 26 + Math.sin(clock * .1 + i * 2) * 7;
+        const z = 2 + Math.cos(clock * .09 + i * 3) * 12;
         o.position.set(x, FF, z);
-        o.rotation.y = clock * .05 + i;
-        o.userData.deck.position.y = 3 + (Math.sin(clock * .3 + i) * .5 + .5) * 6;
+        o.rotation.y = clock * .04 + i;
+        o.userData.deck.position.y = 3 + (Math.sin(clock * .26 + i) * .5 + .5) * 5.5;
       }
     });
   }
   [[PH.slab.t0, PH.slab.t0 + .02, -44, 20, 30], [PH.sitework.t0 + .004, PH.sitework.t0 + .08, -64, -20, 6]].forEach(cfg => {
     const rl = mkRoller();
     equip(rl, {
-      t0: cfg[0], t1: cfg[1], name: 'Roller', dusty: 1,
+      t0: cfg[0], t1: cfg[1], name: 'Vibratory roller', dusty: 1,
       tick: (o) => {
-        const t = (clock * .07) % 1, u = t > .5 ? 1 - (t - .5) * 2 : t * 2;
+        const t = (clock * .06) % 1, u = t > .5 ? 1 - (t - .5) * 2 : t * 2;
         const x = lerp(cfg[2], cfg[3], u), z = cfg[4];
         o.position.set(x, groundY(x, z), z);
         o.rotation.y = t > .5 ? -Math.PI / 2 : Math.PI / 2;
-        o.userData.dr.rotation.z += .08; o.userData.dr2.rotation.z += .08;
+        o.userData.dr.rotation.z += .07; o.userData.dr2.rotation.z += .07;
       }
     });
   });
   const pk = mkPickup(0x272c31);
-  equip(pk, { t0: PH.survey.t0, t1: 1.01, name: "Superintendent's truck", tick: o => { o.position.set(-52, groundY(-52, -26), -26); o.rotation.y = .5; } });
+  equip(pk, { t0: PH.survey.t0, t1: 1.01, name: "Superintendent's truck", tick: o => { o.position.set(-54, groundY(-54, -22), -22); o.rotation.y = .5; } });
   const pk2 = mkPickup(0x7a8288);
-  equip(pk2, { t0: PH.framing.t0, t1: PH.closeout.t0, name: 'Trade truck', tick: o => { o.position.set(-58, groundY(-58, -14), -14); o.rotation.y = .4; } });
+  equip(pk2, { t0: PH.framing.t0, t1: PH.closeout.t0, name: 'Trade truck', tick: o => { o.position.set(-60, groundY(-60, -12), -12); o.rotation.y = .4; } });
   const car = mkPickup(0x15181b);
-  equip(car, { t0: PH.closeout.t0 + .016, t1: 1.01, name: "Owner's vehicle", tick: o => { o.position.set(40, groundY(40, -30), -30); o.rotation.y = Math.PI; } });
+  equip(car, { t0: PH.closeout.t0 + .016, t1: 1.01, name: "Owner's vehicle", tick: o => { o.position.set(42, groundY(42, -32), -32); o.rotation.y = Math.PI; } });
 })();
 
-/* ═══════════════ CREW ═══════════════════════════════════════════ */
-const HATS = [0xd8b23c, 0xe4e7ea, 0x2f6fb5, 0xcf5a2e, 0x3f9a5c];
-function mkWorker(seed) {
-  const g = new TH.Group();
-  const hat = HATS[seed % HATS.length], vest = seed % 3 === 0 ? 0xd8e04a : 0xe07c3a;
-  g.add(box(1.5, 2.5, .9, vest, 0, 4.3, 0, .85));
-  const head = new TH.Mesh(new TH.SphereGeometry(.52, 10, 7), new TH.MeshStandardMaterial({ color: 0xb9906c, roughness: .9 }));
-  head.position.y = 5.9; head.castShadow = true; g.add(head);
-  const hm = new TH.Mesh(new TH.SphereGeometry(.62, 11, 6, 0, TAU, 0, Math.PI / 2),
-    new TH.MeshStandardMaterial({ color: hat, roughness: .4, envMapIntensity: .9 }));
-  hm.position.y = 6.15; hm.castShadow = true; g.add(hm);
-  g.add(box(1.5, .12, 1.5, hat, 0, 6.14, 0, .4));
-  const la = box(.34, 2.1, .34, vest, -.95, 4.2, 0, .85), ra = box(.34, 2.1, .34, vest, .95, 4.2, 0, .85);
-  const ll = box(.44, 3, .44, 0x2c3238, -.42, 1.5, 0, .9), rl = box(.44, 3, .44, 0x2c3238, .42, 1.5, 0, .9);
-  g.add(la, ra, ll, rl);
-  g.userData = { la, ra, ll, rl, seed };
-  return g;
+/* ═══════════════ CREW — instanced, in PPE ═══════════════════════
+   Eight InstancedMeshes cover every worker on site. Each carries a
+   hard hat, a hi-vis vest with reflective banding, safety glasses,
+   gloves and boots; roof and leading-edge work adds a harness.      */
+const MAXCREW = 24;
+const HATS = [0xe0bc3c, 0xf0f2f4, 0x2f6fb5, 0xd8542e, 0x3f9a5c];
+function instMesh(geo, m, n, cast) {
+  const im = new TH.InstancedMesh(geo, m, n);
+  im.frustumCulled = false;
+  im.castShadow = cast !== false; im.receiveShadow = false;
+  im.instanceMatrix.setUsage(TH.DynamicDrawUsage);
+  scene.add(im);
+  return im;
 }
-const CREW = [];
-for (let i = 0; i < 22; i++) { const w = mkWorker(i); w.visible = false; scene.add(w); CREW.push(w); }
-const ZONE = {
-  contract: null, permit: null,
-  survey: [10, 6, 46, 0], clearing: [8, 0, 50, 0], excavate: [6, 4, 34, -3.5],
-  underground: [4, 6, 32, -3.4], foundation: [6, 2, 36, -1], slab: [6, 2, 34, 1.6],
-  framing: [4, 2, 30, 1.6], roofstruct: [4, 2, 28, 14], roofing: [4, 2, 28, 18],
-  openings: [4, 0, 30, 4], roughin: [2, 2, 26, 2], drywall: [2, 2, 26, 2],
-  interior: [2, 4, 26, 2], exteriorfin: [8, 2, 34, 4], sitework: [12, 12, 48, 0],
-  closeout: [2, 4, 26, 2]
-};
-const crewCount = ph => ph.crew.length ? Math.min(22, ph.crew.reduce((a, c) => a + c[1], 0)) : 0;
-let crewActive = 0;
-function updateCrew() {
-  const ph = currentPhase(), zone = ZONE[ph.key];
-  const n = flags.people && zone ? crewCount(ph) : 0;
-  crewActive = zone ? crewCount(ph) : 0;
-  for (let i = 0; i < CREW.length; i++) {
-    const w = CREW[i], on = i < n;
-    if (w.visible !== on) w.visible = on;
-    if (!on) continue;
-    const s = w.userData.seed;
-    const a = clock * (.13 + (s % 5) * .022) + s * 2.4;
-    const rr = zone[2] * (.28 + ((s * 37) % 100) / 140);
-    const x = zone[0] + Math.cos(a) * rr, z = zone[1] + Math.sin(a * 1.31 + s) * rr * .72;
-    let y = zone[3];
-    if (ph.key === 'roofstruct' || ph.key === 'roofing') {
-      const rf = ROOFS[0];
-      y = rf.plate + rf.rise - Math.abs(z - rf.zc) * (rf.rise / rf.half) + .6;
-      if (Math.abs(x - 11) > 22) y = FF;
-    } else if (zone[3] < 2 && ph.key !== 'excavate' && ph.key !== 'underground') y = groundY(x, z);
-    const bob = Math.sin(clock * 4.2 + s);
-    w.position.set(x, y + Math.abs(bob) * .16, z);
-    w.rotation.y = -a - Math.PI / 2;
-    w.userData.ll.rotation.x = bob * .55; w.userData.rl.rotation.x = -bob * .55;
-    w.userData.la.rotation.x = -bob * .5; w.userData.ra.rotation.x = bob * .5;
+const CREWM = (function () {
+  const skin = pmat(0xb08a63, .92, 0);
+  const pants = pmat(0x2f3641, .95, 0);
+  const boot = pmat(0x201d1a, .8, 0);
+  const glove = pmat(0xc9a06a, .9, 0);
+  const vest = pmat(0xffffff, .82, 0);   /* tinted per instance */
+  const hat = pmat(0xffffff, .38, 0, { env: .9 });
+  const refl = pmat(0xd8dfe4, .28, .35, { env: 1.4 });
+  const harn = pmat(0x232a33, .8, 0);
+  /* torso = shirt + vest shell in one geometry */
+  const gTorso = mergeParts([
+    { geo: geoBox, p: [0, 0, 0], s: [1.42, 2.5, .86] },
+    { geo: geoBox, p: [0, .95, 0], s: [1.12, .55, .8] }
+  ]);
+  const gVest = mergeParts([{ geo: geoBox, p: [0, -.1, 0], s: [1.52, 1.85, .96] }]);
+  const gRefl = mergeParts([
+    { geo: geoBox, p: [0, .42, 0], s: [1.56, .2, 1.0] },
+    { geo: geoBox, p: [0, -.36, 0], s: [1.56, .2, 1.0] },
+    { geo: geoBox, p: [-.42, .04, .49], s: [.2, 1.7, .04] },
+    { geo: geoBox, p: [.42, .04, .49], s: [.2, 1.7, .04] }
+  ]);
+  /* head + safety glasses */
+  const gHead = mergeParts([
+    { geo: new TH.SphereGeometry(.5, 9, 7), p: [0, 0, 0], s: [1.04, 1.1, 1.0] },
+    { geo: geoBox, p: [0, .06, .24], s: [.98, .22, .18] }
+  ]);
+  /* hard hat: dome + brim + ridge */
+  const gHat = mergeParts([
+    { geo: new TH.SphereGeometry(.5, 10, 6, 0, TAU, 0, Math.PI / 2), p: [0, 0, 0], s: [1.24, 1.05, 1.24] },
+    { geo: geoBox, p: [0, .02, .12], s: [1.5, .1, 1.62] },
+    { geo: geoBox, p: [0, .28, 0], s: [.22, .18, 1.14] }
+  ]);
+  /* limbs with glove / boot on the end */
+  const gArm = mergeParts([
+    { geo: geoBox, p: [0, .06, 0], s: [.34, 1.9, .34] },
+    { geo: geoBox, p: [0, -.98, .04], s: [.42, .42, .46] }
+  ]);
+  const gLeg = mergeParts([
+    { geo: geoBox, p: [0, .1, 0], s: [.46, 2.8, .46] },
+    { geo: geoBox, p: [0, -1.4, .1], s: [.54, .5, .8] }
+  ]);
+  const gHarness = mergeParts([
+    { geo: geoBox, p: [-.34, .1, 0], s: [.2, 2.3, .96] },
+    { geo: geoBox, p: [.34, .1, 0], s: [.2, 2.3, .96] },
+    { geo: geoBox, p: [0, -.75, 0], s: [1.5, .22, 1.0] },
+    { geo: geoBox, p: [0, .1, -.5], s: [.5, .4, .22] }
+  ]);
+  return {
+    torso: instMesh(gTorso, pants, MAXCREW),
+    vest: instMesh(gVest, vest, MAXCREW),
+    refl: instMesh(gRefl, refl, MAXCREW, false),
+    head: instMesh(gHead, skin, MAXCREW),
+    hat: instMesh(gHat, hat, MAXCREW),
+    armL: instMesh(gArm, glove, MAXCREW),
+    armR: instMesh(gArm, glove, MAXCREW),
+    legL: instMesh(gLeg, boot, MAXCREW),
+    legR: instMesh(gLeg, boot, MAXCREW),
+    harness: instMesh(gHarness, harn, MAXCREW, false)
+  };
+})();
+/* per-instance colour: hats and vests vary, everything else is shared */
+(function tintCrew() {
+  const cc = new TH.Color();
+  ['hat', 'vest'].forEach(k => {
+    const im = CREWM[k];
+    im.instanceColor = new TH.InstancedBufferAttribute(new Float32Array(MAXCREW * 3), 3);
+    for (let i = 0; i < MAXCREW; i++) {
+      if (k === 'hat') cc.setHex(HATS[i % HATS.length]);
+      else cc.setHex(i % 3 === 0 ? HIVIS2 : HIVIS);
+      cc.offsetHSL(0, 0, (R() - .5) * .05);
+      im.instanceColor.setXYZ(i, cc.r, cc.g, cc.b);
+    }
+    im.instanceColor.needsUpdate = true;
+  });
+})();
+
+/* ── task stations: derived from the work itself, so people stand
+      where the work is instead of orbiting the site in a circle ── */
+function alongWalls(list, n, yOf, off) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const w = list[i % list.length];
+    const s = ((i * 7.3) % Math.max(1, w.L - 2)) + 1;
+    const p = ptOn(w, s, (off === undefined ? 3.2 : off) * (i % 2 ? 1 : -1));
+    pts.push([p[0], p[1], yOf]);
   }
+  return pts;
+}
+function onRoof(n) {
+  const pts = [], rf = ROOFS[0], slope = rf.rise / rf.half;
+  for (let i = 0; i < n; i++) {
+    const sg = i % 2 ? 1 : -1, u = .25 + ((i * .17) % .6);
+    const x = rf.x0 + 3 + ((i * 6.1) % Math.max(1, rf.x1 - rf.x0 - 6));
+    const z = rf.zc + sg * rf.half * u;
+    pts.push([x, z, rf.plate + .4 + rf.rise - rf.half * u * slope + .5]);
+  }
+  return pts;
+}
+function inside(n, y) {
+  const pts = [], rr = rng(991);
+  for (let i = 0; i < n; i++) {
+    let x, z, k = 0;
+    do { x = -30 + rr() * 58; z = -22 + rr() * 44; k++; } while (k < 8 && Math.abs(x - 4) < 3);
+    pts.push([x, z, y]);
+  }
+  return pts;
+}
+function scattered(n, x0, z0, x1, z1, y) {
+  const pts = [], rr = rng(4242);
+  for (let i = 0; i < n; i++) pts.push([lerp(x0, x1, rr()), lerp(z0, z1, rr()), y]);
+  return pts;
+}
+const STATION = {
+  survey: [[-34, -26, 0], [32, -26, 0], [32, 26, 0], [-34, 26, 0], [-2, -30, 0], [-14, -34, 0]],
+  clearing: scattered(7, -40, -34, 46, 34, 0),
+  excavate: [[-38, -18, 0], [-38, 8, 0], [36, -18, 0], [36, 12, 0], [8, 30, 0], [-20, 30, 0], [-46, 20, 0]],
+  underground: [[-44, 14, -3.2], [-30, -6, -3.2], [-4, 34, -3.2], [30, 46, -3.2], [-46, 26, 0], [10, 36, 0], [62, 54, 0]],
+  foundation: alongWalls([], 0, 0),
+  slab: scattered(11, -28, -20, 26, 20, 1.7),
+  framing: null, roofstruct: null, roofing: null,
+  openings: null,
+  roughin: inside(13, FF + .2),
+  drywall: inside(15, FF + .2),
+  interior: inside(14, FF + .2),
+  exteriorfin: null,
+  sitework: scattered(16, -60, -40, 56, 56, 0),
+  closeout: [[-6, -30, 0], [2, -30, 0], [8, 26, FF], [-12, 8, FF], [16, 6, FF], [-24, -10, FF], [30, 34, 0], [-2, 40, 0], [22, 44, 0]]
+};
+(function fillStations() {
+  const ext0 = WALLS.filter(w => w.ext && w.y0 === FF);
+  STATION.foundation = alongWalls(ext0, 12, -1.2, 3.4);
+  STATION.framing = alongWalls(ext0, 11, FF + .2, 2.6);
+  STATION.roofstruct = onRoof(9);
+  STATION.roofing = onRoof(11);
+  STATION.openings = alongWalls(ext0, 9, FF + .2, 4.2);
+  STATION.exteriorfin = alongWalls(ext0, 12, FF + .2, 5.0);
+})();
+/* phases where the work is at height and a harness is worn */
+const HARNESS_PH = { roofstruct: 1, roofing: 1, framing: 1 };
+
+const crewCount = ph => ph.crew.length ? Math.min(MAXCREW, ph.crew.reduce((a, c) => a + c[1], 0)) : 0;
+let crewActive = 0;
+const _cm = new TH.Matrix4(), _cq = new TH.Quaternion(), _ce = new TH.Euler(), _cv = new TH.Vector3(), _cs = new TH.Vector3();
+const HIDEC = new TH.Matrix4().compose(new TH.Vector3(0, -9999, 0), new TH.Quaternion(), new TH.Vector3(0, 0, 0));
+function setPart(im, i, x, y, z, ry, rx, sy) {
+  _ce.set(rx || 0, ry, 0);
+  _cq.setFromEuler(_ce);
+  _cm.compose(_cv.set(x, y, z), _cq, _cs.set(1, sy === undefined ? 1 : sy, 1));
+  im.setMatrixAt(i, _cm);
+}
+function updateCrew() {
+  const ph = currentPhase(), st = STATION[ph.key];
+  const n = flags.people && st && st.length ? Math.min(crewCount(ph), MAXCREW) : 0;
+  crewActive = st && st.length ? crewCount(ph) : 0;
+  const harness = !!HARNESS_PH[ph.key];
+  for (let i = 0; i < MAXCREW; i++) {
+    if (i >= n) {
+      for (const k in CREWM) CREWM[k].setMatrixAt(i, HIDEC);
+      continue;
+    }
+    const s = st[i % st.length];
+    const jx = ((i * 37) % 17) / 17 - .5, jz = ((i * 53) % 19) / 19 - .5;
+    /* small local task motion — a step here, a reach there */
+    const ph2 = clock * (.5 + (i % 5) * .09) + i * 2.1;
+    const wob = Math.sin(ph2 * .5);
+    let x = s[0] + jx * 5.5 + Math.sin(ph2 * .32) * 1.6;
+    let z = s[1] + jz * 5.5 + Math.cos(ph2 * .27) * 1.6;
+    let y = s[2];
+    if (y === 0) y = groundY(x, z);
+    /* stay clear of anything with a swing radius */
+    for (let e = 0; e < EQUIP.length; e++) {
+      const eq = EQUIP[e];
+      if (!eq.obj.visible || !eq.obj.userData.swing) continue;
+      const dx = x - eq.obj.position.x, dz = z - eq.obj.position.z;
+      const dd = Math.hypot(dx, dz), rr = eq.obj.userData.swing;
+      if (dd < rr && dd > .001) { x += dx / dd * (rr - dd); z += dz / dd * (rr - dd); }
+    }
+    const face = Math.atan2(s[0] - x, s[1] - z) + Math.PI;
+    const bob = Math.sin(clock * 3.4 + i) * (Math.abs(wob) > .8 ? 1 : .25);
+    const yb = y + Math.abs(bob) * .12;
+    const work = Math.sin(clock * 2.6 + i * 1.7);
+    setPart(CREWM.torso, i, x, yb + 4.25, z, face);
+    setPart(CREWM.vest, i, x, yb + 4.35, z, face);
+    setPart(CREWM.refl, i, x, yb + 4.35, z, face);
+    setPart(CREWM.head, i, x, yb + 5.95, z, face);
+    setPart(CREWM.hat, i, x, yb + 6.18, z, face);
+    const cf = Math.cos(face), sf = Math.sin(face);
+    const ax = .95 * cf, az = -.95 * sf;
+    setPart(CREWM.armL, i, x - ax, yb + 4.2, z - az, face, -.5 - work * .55);
+    setPart(CREWM.armR, i, x + ax, yb + 4.2, z + az, face, -.5 + work * .55);
+    const lx = .42 * cf, lz = -.42 * sf;
+    setPart(CREWM.legL, i, x - lx, yb + 1.55, z - lz, face, bob * .42);
+    setPart(CREWM.legR, i, x + lx, yb + 1.55, z + lz, face, -bob * .42);
+    if (harness) setPart(CREWM.harness, i, x, yb + 4.4, z, face);
+    else CREWM.harness.setMatrixAt(i, HIDEC);
+  }
+  for (const k in CREWM) CREWM[k].instanceMatrix.needsUpdate = true;
 }
 let equipActive = 0;
 function updateEquip() {
@@ -392,52 +620,64 @@ function updateUO() {
 /* ═══════════════ TEMPORARY FACILITIES ═══════════════════════════ */
 (function temps() {
   const IN = PH.clearing.t0 + .004, OUT = PH.closeout.t0 + .006, OUT1 = PH.closeout.t0 + .02;
-  function place(g, x, z, ry, t0, t1, x0, x1) {
+  function place(g, x, z, ry, t0, t1, x0, x1, meta) {
     g.position.set(x, 0, z); g.rotation.y = ry || 0;
+    if (meta) g.userData.meta = meta;
     addU(g, {
       t0: t0 === undefined ? IN : t0, t1: (t0 === undefined ? IN : t0) + .008,
       x0: x0 === undefined ? OUT : x0, x1: x1 === undefined ? OUT1 : x1, l: 'temps',
       tick: (o, u, v) => { g.position.y = groundY(x, z) + (1 - easeOut(u)) * -8 + v * 5; }
     });
   }
+  /* site office, with the required postings and a first-aid station */
   const tr = new TH.Group();
   tr.add(box(34, 9, 12, 0xdde2e6, 0, 6.5, 0, .62));
-  tr.add(box(34.6, 1, 12.6, 0x99a0a7, 0, 11.4, 0, .5, .4));
+  tr.add(box(34.6, 1, 12.6, 0x99a0a7, 0, 11.4, 0, .5, .35));
   for (let i = 0; i < 4; i++) tr.add(glassPane(3.4, 3, .3, -12 + i * 8, 7.6, 6.1));
   tr.add(box(3, 6.6, .4, 0x454c53, 13, 5.3, 6.1, .7));
-  tr.add(box(5, .4, 4, 0x666d74, 13, 2.2, 8.4, .8));
-  tr.add(box(3, 2.4, .2, 0xd4a860, -12, 10.2, 6.2, .5));
+  /* stair with a handrail, not a jump to the door */
+  tr.add(box(5, .4, 4, 0x666d74, 13, 2.6, 8.6, .8));
+  tr.add(box(5, .4, 2.4, 0x666d74, 13, 1.5, 10.6, .8));
+  [-1, 1].forEach(s => tr.add(box(.2, 3.4, 4.4, 0xd8a13c, 13 + s * 2.4, 4.2, 9.4, .6)));
+  [-1, 1].forEach(s => tr.add(box(.2, .2, 4.6, 0xd8a13c, 13 + s * 2.4, 5.7, 9.4, .6)));
+  tr.add(box(2.6, 2.2, .2, 0xd8402c, -14, 9.2, 6.2, .6));
+  tr.add(box(1.6, 2.2, 1.0, 0xd8402c, 17.4, 3.6, 3, .55));
+  tr.userData.meta = { n: 'Site office & first aid', s: 'site', d: 'Superintendent\'s office with the permit set, the safety plan, the SDS binder, a stocked first-aid cabinet, eyewash and a fire extinguisher on the exterior wall.' };
   place(tr, -62, 6, .28);
-  [[-46, -40], [-38, 22]].forEach((p, i) => {
+  /* waste separation — one general, one recycling */
+  [[-46, -40, 0x8a4a3c, 'General construction waste'], [-52, 18, 0x46613f, 'Recycling — wood, metal, cardboard']].forEach((p, i) => {
     const dm = new TH.Group();
-    dm.add(box(20, 7, 8, i ? 0x46613f : 0x8a4a3c, 0, 3.5, 0, .85));
+    dm.add(box(20, 7, 8, p[2], 0, 3.5, 0, .85));
     dm.add(box(20.4, .5, 8.4, 0x35393e, 0, 7.1, 0, .8));
-    place(dm, p[0], p[1], i ? .5 : -.2);
+    place(dm, p[0], p[1], i ? .5 : -.2, undefined, undefined, undefined, undefined,
+      { n: 'Waste container', s: 'site', d: p[3] + '. Emptied on a schedule so debris never accumulates in the work area — housekeeping is the single most common citation on a residential job.' });
   });
   [[-52, -34], [-48, -34], [-44, -34]].forEach((p, i) => {
     const pt = new TH.Group();
     pt.add(box(4, 8, 4, i === 1 ? 0x3f7fa8 : 0x4a8f6a, 0, 4, 0, .72));
     pt.add(box(4.2, .6, 4.2, 0xe4e8eb, 0, 8.2, 0, .68));
-    place(pt, p[0], p[1], .1 * i);
+    place(pt, p[0], p[1], .1 * i, undefined, undefined, undefined, undefined,
+      { n: 'Sanitation', s: 'site', d: 'One unit per twenty workers with a wash station alongside, serviced weekly.' });
   });
   const tp = new TH.Group();
   tp.add(box(1, 22, 1, 0x6b5b45, 0, 11, 0, .9));
-  tp.add(box(2.4, 3.4, 1.4, 0x99a0a7, 1.4, 15, 0, .45, .5));
-  place(tp, -70, -18, 0, PH.clearing.t0 + .006, 0, PH.sitework.t1 - .02, PH.sitework.t1 - .01);
-  for (let i = 0; i < 16; i++) {
-    const fp = new TH.Group();
-    fp.add(box(11.6, 7, .3, 0xc4cace, 0, 3.6, 0, .7, .35));
-    for (let k = 0; k < 3; k++) fp.add(box(.4, 7.4, .5, 0x99a0a7, -5.6 + k * 5.6, 3.7, 0, .55, .45));
-    const x = -92 + i * 3, z = -56 + i * 7.6;
-    place(fp, x, z, Math.atan2(3, 7.6), PH.clearing.t0 + .002 + i * .0004, 0, PH.sitework.t0 + .01, PH.sitework.t0 + .022);
-  }
+  tp.add(box(2.4, 3.4, 1.4, 0x99a0a7, 1.4, 15, 0, .45, .45));
+  tp.add(box(2.0, 2.6, 1.2, 0xd8402c, 1.4, 5.2, 0, .6));
+  place(tp, -72, -4, 0, PH.clearing.t0 + .006, 0, PH.sitework.t1 - .02, PH.sitework.t1 - .01,
+    { n: 'Temporary power', s: 'electrical', d: 'GFCI-protected temporary service on a pole with a weatherproof panel and a lockable disconnect. Every cord on site lands on a GFCI.' });
+
+  /* ── material laydown: banded, blocked and off the ground ── */
   function stack(x, z, col, t0, phaseKey, label, note, w, h, dp) {
     const g = new TH.Group(), rows = 6, parts = [];
+    g.add(box(w + 1, .5, dp + 1, 0x6b5b45, 0, .25, 0, .9));
     for (let i = 0; i < rows; i++) {
-      const b = box(w, h / rows * .82, dp, col, 0, h / rows * (i + .5), (i % 2) * .6 - .3, .85);
+      const b = box(w, h / rows * .84, dp, col, 0, .5 + h / rows * (i + .5), 0, .85);
       g.add(b); parts.push(b);
+      if (i === rows - 1) {
+        [-1, 1].forEach(s => g.add(box(.16, h + .6, dp + .2, 0x2b2f34, s * w * .3, .5 + h / 2, 0, .6)));
+      }
     }
-    g.position.set(x, 0, z); g.rotation.y = R() * .4;
+    g.position.set(x, 0, z); g.rotation.y = R() * .3;
     g.userData.meta = { n: label, s: 'site', d: note };
     addU(g, {
       t0: t0, t1: t0 + .006, l: 'temps',
@@ -448,18 +688,18 @@ function updateUO() {
       }
     });
   }
-  stack(-30, -42, 0xd6ae74, PH.framing.t0 - .008, 'framing', 'Lumber package',
-    'Delivered in the order it is needed — plates and studs first, then joists, then the truss set.', 22, 6, 8);
-  stack(-14, -44, 0xd6ae74, PH.roofstruct.t0 - .006, 'roofstruct', 'Truss bundle',
-    'Stacked flat and blocked off the ground so the trusses cannot twist before they are set.', 26, 5, 7);
-  stack(20, -42, 0xe9e5dc, PH.drywall.t0 - .006, 'drywall', 'Drywall load',
-    'Boarded room by room through the window openings before the glass goes in.', 18, 4, 8);
-  stack(34, 14, 0x7f766a, PH.exteriorfin.t0 - .006, 'exteriorfin', 'Stone pallets',
-    'Blended across three pallets at a time so the finished wall has no colour banding.', 10, 5, 10);
+  stack(-26, -44, 0xd6ae74, PH.framing.t0 - .008, 'framing', 'Lumber package',
+    'Delivered in the order it is needed, banded, dunnaged clear of the ground and covered. Stacked below head height and well back from the excavation edge.', 22, 6, 8);
+  stack(-6, -44, 0xd6ae74, PH.roofstruct.t0 - .006, 'roofstruct', 'Truss bundle',
+    'Stacked flat, blocked and banded so nothing can twist or roll before it is set.', 24, 5, 7);
+  stack(16, -44, 0xe9e5dc, PH.drywall.t0 - .006, 'drywall', 'Drywall load',
+    'Boarded room by room through the openings. Sheets stored flat, never leaned against a wall where they can slide.', 18, 4, 8);
+  stack(38, 16, 0x7f766a, PH.exteriorfin.t0 - .006, 'exteriorfin', 'Stone pallets',
+    'Blended across three pallets at a time so the finished wall has no colour banding. Pallets stay banded until they are worked.', 10, 5, 10);
 })();
 
 /* ═══════════════ WEATHER PARTICLES ══════════════════════════════ */
-const wxCount = SMALL ? 1400 : 2600;
+const wxCount = SMALL ? 1200 : 2400;
 const wxGeo = new TH.BufferGeometry();
 const wxPos = new Float32Array(wxCount * 3), wxSeed = new Float32Array(wxCount);
 for (let i = 0; i < wxCount; i++) {
@@ -469,13 +709,13 @@ for (let i = 0; i < wxCount; i++) {
   wxSeed[i] = Math.random();
 }
 wxGeo.setAttribute('position', new TH.BufferAttribute(wxPos, 3));
-const wxMat = new TH.PointsMaterial({ color: 0xdfe9f2, size: .55, transparent: true, opacity: 0, depthWrite: false });
+const wxMat = new TH.PointsMaterial({ color: 0xdfe9f2, size: .55, transparent: true, opacity: 0, depthWrite: false, fog: false });
 const wxPts = new TH.Points(wxGeo, wxMat);
 wxPts.frustumCulled = false;
 scene.add(wxPts);
 
-/* ═══════════════ DUST — kicked up by earthwork equipment ════════ */
-const duCount = SMALL ? 90 : 170;
+/* ═══════════════ DUST ═══════════════════════════════════════════ */
+const duCount = SMALL ? 70 : 150;
 const duGeo = new TH.BufferGeometry();
 const duPos = new Float32Array(duCount * 3), duSeed = new Float32Array(duCount);
 for (let i = 0; i < duCount; i++) {
@@ -485,26 +725,25 @@ for (let i = 0; i < duCount; i++) {
   duSeed[i] = Math.random();
 }
 duGeo.setAttribute('position', new TH.BufferAttribute(duPos, 3));
-const duMat = new TH.PointsMaterial({ color: 0xb9a486, size: 2.6, transparent: true, opacity: 0, depthWrite: false, map: TEX.cloud.map });
+const duMat = new TH.PointsMaterial({ color: 0xb9a486, size: 2.6, transparent: true, opacity: 0, depthWrite: false, map: TEX.cloud.map, fog: true });
 const duPts = new TH.Points(duGeo, duMat);
 duPts.frustumCulled = false;
 scene.add(duPts);
 function updateDust(dt) {
   const day = T * DAYS;
   const earthy = flags.people && day > PH.clearing.d0 && day < PH.slab.d1 && weatherAt(day).t === 'clear';
-  duMat.opacity = lerp(duMat.opacity, earthy ? .16 : 0, 1 - Math.pow(.06, dt));
+  duMat.opacity = lerp(duMat.opacity, earthy ? .13 : 0, 1 - Math.pow(.06, dt));
   duPts.visible = duMat.opacity > .01;
   if (!duPts.visible) return;
   const Pd = duGeo.attributes.position.array;
+  let ax = 8, az = 2, found = false;
+  for (let k = 0; k < EQUIP.length; k++) {
+    if (EQUIP[k].dusty && EQUIP[k].obj.visible) { ax = EQUIP[k].obj.position.x; az = EQUIP[k].obj.position.z; found = true; break; }
+  }
   for (let i = 0; i < duCount; i++) {
     Pd[i * 3] += dt * (2.5 + duSeed[i] * 2);
     Pd[i * 3 + 1] += dt * (1.2 + duSeed[i] * 1.6);
     if (Pd[i * 3 + 1] > 9 + duSeed[i] * 5) {
-      /* respawn near a working machine so the dust reads as activity */
-      let ax = 8, az = 2, found = false;
-      for (let k = 0; k < EQUIP.length; k++) {
-        if (EQUIP[k].dusty && EQUIP[k].obj.visible) { ax = EQUIP[k].obj.position.x; az = EQUIP[k].obj.position.z; found = true; break; }
-      }
       Pd[i * 3] = ax + (Math.random() - .5) * (found ? 16 : 90);
       Pd[i * 3 + 1] = groundY(Pd[i * 3], az) + .5;
       Pd[i * 3 + 2] = az + (Math.random() - .5) * (found ? 14 : 80);

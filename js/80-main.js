@@ -4,7 +4,10 @@
    ═════════════════════════════════════════════════════════════════ */
 
 /* ── sun/sky cycle: several day/night cycles across the lapse ── */
-const SUN_CYCLES = 9;
+/* 8.25 cycles puts the playhead at high noon exactly when the house is
+   handed over — the reveal used to land on whatever the modulo gave it,
+   which is why the finished building was being shown at night */
+const SUN_CYCLES = 8.25;
 const SUN_ANCHOR = new TH.Vector3(8, 0, 4);
 const C_DAYTOP = new TH.Color(0x2c6ba6), C_DAYHZ = new TH.Color(0xc8dae6), C_DAYBOT = new TH.Color(0x6f7d88);
 const C_SETTOP = new TH.Color(0x35415f), C_SETHZ = new TH.Color(0xe8935a), C_SETBOT = new TH.Color(0x5a4a44);
@@ -42,16 +45,21 @@ function updateSky(dt) {
   _c1.copy(C_NGTBOT).lerp(C_DAYBOT, light).lerp(C_SETBOT, dusk * .8);
   skyU.bot.value.copy(_c1).lerp(_c2.copy(C_GREY).multiplyScalar(.4 + light * .3), cloudy * .8);
 
-  /* lights */
-  sun.position.copy(SUN_ANCHOR).addScaledVector(sd, 320);
-  sun.target.position.copy(SUN_ANCHOR);
-  sun.intensity = (2.3 - cloudy * 1.55) * light;
-  sun.color.setHSL(.09 - dusk * .035, .42 + dusk * .38, .82 - dusk * .16);
-  hemi.intensity = .18 + light * (.52 - cloudy * .2);
-  amb.intensity = .08 + light * .1 + cloudy * light * .1;
-  fill.intensity = .1 + light * .22;
-  moon.intensity = nite * .26 * (1 - cloudy * .7);
-  lampA.intensity = lampB.intensity = nite * 2.4 * houseLit();
+  /* lights — shadow frustum follows the shot and tightens on zoom */
+  const half = clamp(CAM.dist * .62, 38, 125);
+  setShadowExtent(half);
+  sun.target.position.set(CAM.tg.x, 3, CAM.tg.z);
+  sun.position.copy(sun.target.position).addScaledVector(sd, 300);
+  sun.intensity = (2.75 - cloudy * 1.95) * light;
+  sun.color.setHSL(.095 - dusk * .04, .38 + dusk * .40, .84 - dusk * .18);
+  /* every ambient term collapses at night so the ground cannot stay lit
+     under a dark sky the way it used to */
+  hemi.intensity = .045 + light * (.42 - cloudy * .12) + cloudy * light * .16;
+  amb.intensity = .025 + light * .085;
+  fill.intensity = .035 + light * .17;
+  moon.intensity = nite * .30 * (1 - cloudy * .7);
+  lampA.intensity = lampB.intensity = nite * 2.6 * houseLit();
+  renderer.toneMappingExposure = .72 + light * .40 - cloudy * .07;
 
   /* stars & glare */
   stars.material.opacity = nite * (1 - cloudy) * .9;
@@ -64,8 +72,8 @@ function updateSky(dt) {
   /* fog closes in with cloud and at night */
   _fogC.copy(skyU.hz.value).lerp(skyU.bot.value, .4);
   scene.fog.color.copy(_fogC);
-  scene.fog.near = 300 - cloudy * 130;
-  scene.fog.far = 1700 - cloudy * 800 - nite * 260;
+  scene.fog.near = 340 - cloudy * 150;
+  scene.fog.far = 1800 - cloudy * 820 - nite * 300;
   renderer.setClearColor(_fogC);
 
   /* clouds drift; denser cover when weather says so */
@@ -79,9 +87,9 @@ function updateSky(dt) {
   /* interior glow — lamps & sconces burn brighter at night */
   if (G.glow && G.glow.mat) G.glow.mat.emissiveIntensity = .45 + nite * 3.6 * (.3 + houseLit() * .7);
   if (G.glass && G.glass.mat) {
-    G.glass.mat.emissive = G.glass.mat.emissive || new TH.Color(0x000000);
-    G.glass.mat.emissive.setHex(0xffd9a0);
-    G.glass.mat.emissiveIntensity = nite * .5 * houseLit();
+    const lit = houseLit();
+    if (lit > .001) G.glass.mat.emissive.setHex(0xffd9a0);
+    G.glass.mat.emissiveIntensity = nite * .55 * lit;
   }
 
   /* precipitation */
@@ -150,9 +158,10 @@ function adaptQuality(dt) {
   fpsAcc += dt; fpsN++;
   if (fpsAcc < 1.6) return;
   const fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0;
-  if (fps < 26 && qStep < 2) {
+  if (fps < 26 && qStep < 3) {
     qStep++;
     if (qStep === 1) { DPR_CAP = Math.max(1, DPR_CAP - .45); renderer.setPixelRatio(Math.min(devicePixelRatio || 1, DPR_CAP)); }
+    else if (qStep === 2) { sun.shadow.mapSize.set(1024, 1024); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
     else { sun.castShadow = false; renderer.shadowMap.enabled = false; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); }
   }
 }

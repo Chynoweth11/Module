@@ -28,10 +28,18 @@ css/app.css         all styles (scoped under #ct)
 js/00-core.js       schedule, phases, milestones, weather, helpers
 js/10-textures.js   procedural canvas textures + normal maps
 js/20-scene.js      renderer, sky, lights, terrain system
-js/30-plan.js       floor plan: walls, openings, roofs, materials
+js/30-plan.js       floor plan, panelization, keep-out zones, geometry
+js/35-safety.js     OSHA site systems: shoring, guardrails, scaffold, traffic
 js/40-build.js      every construction phase, instancing, cutaway
-js/50-actors.js     equipment, crew, temp facilities, weather/dust FX
+js/50-actors.js     equipment, instanced PPE crew, temp facilities, FX
 js/60-camera.js     directed cinematic camera
 js/70-ui.js         transport, scrubber, settings, click‑to‑identify
 js/80-main.js       sun/sky cycle, frame loop, adaptive quality, boot
 ```
+
+## Verifying changes
+`harness/` (not shipped) runs every script against a THREE/DOM mock and
+sweeps the full timeline forward and back, through every cutaway mode and
+layer toggle, then audits the build for sequence violations, duplicate
+placements and floating objects. Useful because the failure modes here are
+mostly logic, not syntax.

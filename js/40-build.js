@@ -384,25 +384,24 @@
     m: { n: '5¼×18 glulam ridge beam', s: 'framing', d: 'Set by telehandler onto the steel columns. This single member replaces the bearing wall that would otherwise split the great room.' }
   });
 
-  /* wall sheathing (also the shear diaphragm) */
-  const shA = PH.roofstruct.t0 + .002, shB = PH.roofstruct.t0 + (PH.roofstruct.t1 - PH.roofstruct.t0) * .62;
-  const extAll = WALLS.filter(w => w.ext);
-  let panels = [];
-  extAll.forEach(w => {
-    const ax = Math.abs(w.ux) > .5, cols = Math.ceil(w.L / 4), rows = Math.ceil(w.h / 4);
-    for (let cI = 0; cI < cols; cI++) for (let r = 0; r < rows; r++) {
-      const s = cI * 4 + Math.min(4, w.L - cI * 4) / 2, y = w.y0 + r * 4 + Math.min(4, w.h - r * 4) / 2;
-      if (openingAt(w, s, y)) continue;
-      const pt = ptOn(w, s, w.t / 2 + .09);
-      panels.push({ p: [pt[0], y, pt[1]], w: Math.min(4, w.L - cI * 4) * .98, h: Math.min(4, w.h - r * 4) * .98, ax });
-    }
-  });
-  const pq = seq(shA, shB, panels.length, .2);
-  panels.forEach((pn, i) => {
-    const t = pq(i);
-    P('osb', {
-      p: pn.p, s: pn.ax ? [pn.w, pn.h, .16] : [.16, pn.h, pn.w], t0: t[0], t1: t[1], l: 'framing', a: 'grow',
-      m: { n: '7/16" OSB shear sheathing', s: 'framing', d: 'Nailed 6" on the edges and 12" in the field per the shear schedule. This is what makes the walls resist wind and seismic load.' }
+  /* wall sheathing — sheathed as each level is stood, ground floor
+     first. Panels are clipped to the openings instead of dropping any
+     cell that happened to straddle one. */
+  const mSheath = { n: '7/16" OSB shear sheathing', s: 'framing', d: 'Nailed 6" on the panel edges and 12" in the field per the shear schedule, with blocking at every unsupported edge. This is what makes the wall resist wind and seismic load.' };
+  [[l0.filter(w => w.ext), [L0[0] + (L0[1] - L0[0]) * .34, L0[1] + S * .03]],
+   [l1.filter(w => w.ext), [L1[0] + (L1[1] - L1[0]) * .34, L1[1]]]].forEach(set => {
+    const panels = [];
+    set[0].forEach(w => panelize(w, 4, 4).forEach(pn => {
+      const pt = ptOn(w, pn.s, w.t / 2 + .09);
+      panels.push({ p: [pt[0], pn.y, pt[1]], w: pn.w, h: pn.h, ax: pn.ax });
+    }));
+    const pq = seq(set[1][0], set[1][1], panels.length, .2);
+    panels.forEach((pn, i) => {
+      const t = pq(i);
+      P('osb', {
+        p: pn.p, s: pn.ax ? [pn.w * 1.006, pn.h * 1.006, .16] : [.16, pn.h * 1.006, pn.w * 1.006],
+        t0: t[0], t1: t[1], l: 'framing', a: 'grow', m: mSheath
+      });
     });
   });
 })();
@@ -442,7 +441,7 @@
       });
     }
     [rf.x0, rf.x1].forEach((gx, gi) => {
-      if (rf.key === 'main' && gi === 0) return;
+      if (rf.ng && rf.ng.indexOf(gi) >= 0) return;
       const t = seq(TR[1] - S * .1, TR[1], 2)(gi);
       P('triLum', {
         p: [gx, rf.plate + rf.rise / 2 + .2, rf.zc], s: [rf.half * 2, rf.rise, .5], r: [0, Math.PI / 2, 0],
@@ -472,14 +471,14 @@
         const dl = slopeLen / rows;
         const dt = dq(idx);
         P('osb', {
-          p: [x, y, rf.zc + sg * uz], s: [(rf.x1 - rf.x0 + rf.ov * 2) / cols * .98, .17, dl * .99],
+          p: [x, y, rf.zc + sg * uz], s: [(rf.x1 - rf.x0 + rf.ov * 2) / cols * 1.02, .17, dl * 1.03],
           r: [sg * ang, 0, 0], t0: dt[0], t1: dt[1], l: 'framing', a: 'grow',
           m: { n: 'Roof sheathing', s: 'framing', d: '5/8" sheathing with H‑clips at the unsupported edges, nailed to the engineered schedule.' }
         });
         const rt = rq(idx);
         P('memb', {
           p: [x, y + .24 * Math.cos(ang), rf.zc + sg * (uz + .24 * Math.sin(ang) * -1)],
-          s: [(rf.x1 - rf.x0 + rf.ov * 2) / cols * .99, .06, dl], r: [sg * ang, 0, 0],
+          s: [(rf.x1 - rf.x0 + rf.ov * 2) / cols * 1.03, .06, dl * 1.05], r: [sg * ang, 0, 0],
           t0: rt[0] - .004, t1: rt[1] - .004, l: 'roofing', a: 'grow',
           m: { n: 'Underlayment & ice shield', s: 'roofing', d: 'Self‑adhered membrane at the eaves, valleys and penetrations; synthetic underlayment over the field.' }
         });
@@ -489,7 +488,7 @@
             const yy = y + .36 * Math.cos(ang), zz = rf.zc + sg * (uz - .36 * Math.sin(ang));
             P('slate', {
               p: [x - (rf.x1 - rf.x0 + rf.ov * 2) / cols / 2 + ((k + .5) / per) * (rf.x1 - rf.x0 + rf.ov * 2) / cols, yy, zz],
-              s: [(rf.x1 - rf.x0 + rf.ov * 2) / cols / per * .95, .12, dl * .99], r: [sg * ang, 0, 0],
+              s: [(rf.x1 - rf.x0 + rf.ov * 2) / cols / per * 1.06, .14, dl * 1.09], r: [sg * ang, 0, 0],
               t0: rt[0], t1: rt[1], l: 'roofing', a: 'grow',
               m: { n: 'Natural slate course', s: 'roofing', d: 'Graduated slate laid to a 3" headlap on copper nails, each course chalked and gauged from the eave.' }
             });
@@ -497,13 +496,15 @@
         } else {
           P('seam', {
             p: [x, y + .34 * Math.cos(ang), rf.zc + sg * (uz - .34 * Math.sin(ang))],
-            s: [(rf.x1 - rf.x0 + rf.ov * 2) / cols * .97, .1, dl], r: [sg * ang, 0, 0],
+            s: [(rf.x1 - rf.x0 + rf.ov * 2) / cols * 1.02, .1, dl * 1.04], r: [sg * ang, 0, 0],
             t0: rt[0], t1: rt[1], l: 'roofing', a: 'grow',
             m: { n: 'Standing seam panel', s: 'roofing', d: 'Roll‑formed 24 ga. panels with concealed clips, run full length from ridge to eave with no exposed fasteners.' }
           });
-          for (let k = 0; k < 3; k++) P('seam', {
-            p: [x - 1.6 + k * 1.6, y + .48 * Math.cos(ang), rf.zc + sg * (uz - .48 * Math.sin(ang))],
-            s: [.13, .26, dl], r: [sg * ang, 0, 0], t0: rt[0], t1: rt[1], l: 'roofing', a: 'grow',
+          const pwid = (rf.x1 - rf.x0 + rf.ov * 2) / cols;
+          const nrib = Math.max(2, Math.round(pwid / 1.6));
+          for (let k = 0; k < nrib; k++) P('seam', {
+            p: [x - pwid / 2 + (k + .5) * pwid / nrib, y + .46 * Math.cos(ang), rf.zc + sg * (uz - .46 * Math.sin(ang))],
+            s: [.13, .26, dl * 1.04], r: [sg * ang, 0, 0], t0: rt[0], t1: rt[1], l: 'roofing', a: 'grow',
             m: { n: 'Standing seam rib', s: 'roofing', d: 'Mechanically seamed rib, 2" tall at 16" on center.' }
           });
         }
@@ -533,7 +534,7 @@
       m: { n: 'Flat roof framing', s: 'framing', d: 'Tapered joists sloped 1/4" per foot to interior drains, with blocking at the parapet.' }
     });
     P('memb', {
-      p: [x + w / 2, TOWER.deck + .06, z + dp / 2], s: [w, .12, dp],
+      p: [x + w / 2, TOWER.deck + .06, z + dp / 2], s: [w * 1.05, .12, dp * 1.05],
       t0: RA + .002 + (n % 24) * .0004, t1: RA + .014 + (n % 24) * .0004, l: 'roofing', a: 'grow',
       m: { n: 'Single‑ply membrane', s: 'roofing', d: 'Fully adhered 60 mil TPO with heat‑welded seams and a 24" walk pad to the mechanical units.' }
     });
@@ -557,23 +558,20 @@
   });
 
   /* housewrap over the sheathing — before the windows go in */
-  const wA = RA + (RB - RA) * .45, wB = RB;
-  const extAll = WALLS.filter(w => w.ext);
-  let wi = 0;
-  const total = extAll.reduce((a, w) => a + Math.ceil(w.L / 8), 0);
-  const wq = seq(wA, wB, total, .2);
-  extAll.forEach(w => {
-    const ax = Math.abs(w.ux) > .5, cols = Math.ceil(w.L / 8);
-    for (let c = 0; c < cols; c++) {
-      const s = c * 8 + Math.min(8, w.L - c * 8) / 2, pt = ptOn(w, s, w.t / 2 + .2);
-      const t = wq(wi++);
-      P('wrap', {
-        p: [pt[0], w.y0 + w.h / 2, pt[1]],
-        s: ax ? [Math.min(8, w.L - c * 8) * .99, w.h, .05] : [.05, w.h, Math.min(8, w.L - c * 8) * .99],
-        t0: t[0], t1: t[1], l: 'enclosure', a: 'rise',
-        m: { n: 'Weather‑resistive barrier', s: 'enclosure', d: 'Housewrap lapped shingle‑style over the flashing, taped at every seam. This is the drainage plane that keeps the wall dry.' }
-      });
-    }
+  const wA = RA + (RB - RA) * .34, wB = RB;
+  const wpan = [];
+  WALLS.filter(w => w.ext).forEach(w => panelize(w, 8, 9).forEach(pn => {
+    const pt = ptOn(w, pn.s, w.t / 2 + .2);
+    wpan.push({ p: [pt[0], pn.y, pt[1]], w: pn.w, h: pn.h, ax: pn.ax });
+  }));
+  const wq = seq(wA, wB, wpan.length, .2);
+  wpan.forEach((pn, i) => {
+    const t = wq(i);
+    P('wrap', {
+      p: pn.p, s: pn.ax ? [pn.w * 1.01, pn.h * 1.01, .05] : [.05, pn.h * 1.01, pn.w * 1.01],
+      t0: t[0], t1: t[1], l: 'enclosure', a: 'grow',
+      m: { n: 'Weather-resistive barrier', s: 'enclosure', d: 'Housewrap lapped shingle-style over the flashing and taped at every seam. Openings are cut back and pan-flashed before the units are set.' }
+    });
   });
 })();
 
@@ -746,20 +744,13 @@
   const iA = [A + S * .02, A + S * .36], gA = [A + S * .32, A + S * .82];
 
   const bays = [];
-  WALLS.filter(w => w.ext).forEach(w => {
-    const n = Math.max(2, Math.floor((w.L - .5) / 1.333));
-    for (let i = 0; i < n; i++) {
-      const s = .3 + (i + .5) * (w.L - .6) / n;
-      if (inOpenSpan(w, s)) continue;
-      bays.push({ w, s, ax: Math.abs(w.ux) > .5 });
-    }
-  });
+  WALLS.filter(w => w.ext).forEach(w => panelize(w, 1.333, 14).forEach(pn => bays.push({ w: w, pn: pn })));
   const iq = seq(iA[0], iA[1], bays.length, .16);
   bays.forEach((b, i) => {
-    const pt = ptOn(b.w, b.s), t = iq(i);
+    const pt = ptOn(b.w, b.pn.s), t = iq(i);
     P('insul', {
-      p: [pt[0], b.w.y0 + .3 + (b.w.h - .6) / 2, pt[1]],
-      s: b.ax ? [1.06, b.w.h - .7, b.w.t * .8] : [b.w.t * .8, b.w.h - .7, 1.06],
+      p: [pt[0], b.pn.y, pt[1]],
+      s: b.pn.ax ? [b.pn.w * .8, Math.max(.35, b.pn.h - .62), b.w.t * .6] : [b.w.t * .6, Math.max(.35, b.pn.h - .62), b.pn.w * .8],
       t0: t[0], t1: t[1], l: 'insulation', a: 'rise',
       m: { n: 'R‑23 mineral wool batt', s: 'insulation', d: 'Friction‑fit full depth with no compression, split neatly around wiring rather than crushed behind it. Rim joists get closed‑cell foam.' }
     });
@@ -782,16 +773,12 @@
   /* drywall — interior faces */
   const faces = [];
   WALLS.forEach(w => {
-    const ax = Math.abs(w.ux) > .5, cols = Math.ceil(w.L / 4), rows = Math.ceil(w.h / 4.5);
     const sides = w.ext ? [-1] : [-1, 1];
-    sides.forEach(sd => {
-      for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
-        const s = c * 4 + Math.min(4, w.L - c * 4) / 2, y = w.y0 + r * 4.5 + Math.min(4.5, w.h - r * 4.5) / 2;
-        if (openingAt(w, s, y)) continue;
-        const pt = ptOn(w, s, sd * (w.t / 2 + .04));
-        faces.push({ p: [pt[0], y, pt[1]], w: Math.min(4, w.L - c * 4) * .99, h: Math.min(4.5, w.h - r * 4.5) * .99, ax });
-      }
-    });
+    const pans = panelize(w, 4, 4.5);
+    sides.forEach(sd => pans.forEach(pn => {
+      const pt = ptOn(w, pn.s, sd * (w.t / 2 + .04));
+      faces.push({ p: [pt[0], pn.y, pt[1]], w: pn.w * 1.004, h: pn.h * 1.004, ax: pn.ax });
+    }));
   });
   const gq = seq(gA[0], gA[1], faces.length, .13);
   faces.forEach((f, i) => {
@@ -808,7 +795,7 @@
     ceil.push([x + 3, 13.35, z + 3, 6, 6]);
   }
   for (let x = 30; x < 58; x += 7) for (let z = -24; z < 0; z += 6) ceil.push([x + 3.5, 11.9, z + 3, 7, 6]);
-  for (let x = -32; x < -8; x += 6) for (let z = -24; z < 2; z += 6.5) ceil.push([x + 3, 24.3, z + 3.25, 6, 6.5]);
+  for (let x = -32; x < -8; x += 6) for (let z = -24; z < 2; z += 6.5) ceil.push([x + 3, 22.6, z + 3.25, 6, 6.5, 1]);
   const cq = seq(gA[0] + (gA[1] - gA[0]) * .3, gA[1], ceil.length, .13);
   ceil.forEach((c, i) => {
     const t = cq(i);
@@ -817,7 +804,7 @@
       m: { n: 'Ceiling board', s: 'insulation', d: '5/8" sag‑resistant board on resilient channel over the flat ceilings, with blown insulation above to R‑60.' }
     });
     P('foam', {
-      p: [c[0], c[1] + 1.1, c[2]], s: [c[3] * .98, 1.7, c[4] * .98], t0: t[0] - .004, t1: t[1] - .004, l: 'insulation', a: 'grow',
+      p: [c[0], c[1] + (c[5] ? .72 : 1.1), c[2]], s: [c[3] * .98, c[5] ? 1.15 : 1.7, c[4] * .98], t0: t[0] - .004, t1: t[1] - .004, l: 'insulation', a: 'grow',
       m: { n: 'Blown ceiling insulation', s: 'insulation', d: 'Blown cellulose to R‑60, dammed back from the eave vents by baffles so the soffit intake stays open.' }
     });
   });
@@ -947,43 +934,67 @@
 /* ═══ 12 · EXTERIOR FINISHES & MASONRY ═══ */
 (function extfin() {
   const A = PH.exteriorfin.t0, B = PH.exteriorfin.t1, S = B - A;
-  const stoneTop = 5.4;
-  const cells = [];
+  const stoneTop = FF + 5.4;
+  /* clip the solid part of a wall to a height band, then tile it —
+     the old grid dropped any cell that touched an opening, which is
+     what left the housewrap and the insulation showing at every jamb */
+  function clad(w, ylo, yhi, maxW, maxH) {
+    const out = [], ax = Math.abs(w.ux) > .5;
+    wallRects(w).forEach(r => {
+      const y0 = Math.max(r.y0, ylo), y1 = Math.min(r.y1, yhi);
+      if (y1 - y0 < .25) return;
+      const W = r.s1 - r.s0, H = y1 - y0;
+      const nc = Math.max(1, Math.round(W / maxW)), nr = Math.max(1, Math.round(H / maxH));
+      for (let c = 0; c < nc; c++) for (let k = 0; k < nr; k++)
+        out.push({ s: r.s0 + (c + .5) * W / nc, y: y0 + (k + .5) * H / nr, w: W / nc, h: H / nr, ax: ax });
+    });
+    return out;
+  }
+  const stoneP = [], stucP = [];
   WALLS.filter(w => w.ext).forEach(w => {
-    const ax = Math.abs(w.ux) > .5, cols = Math.ceil(w.L / 3.2);
-    for (let c = 0; c < cols; c++) {
-      const cw = Math.min(3.2, w.L - c * 3.2), s = c * 3.2 + cw / 2;
-      const rows = Math.ceil(w.h / 2.6);
-      for (let r = 0; r < rows; r++) {
-        const rh = Math.min(2.6, w.h - r * 2.6), y = w.y0 + r * 2.6 + rh / 2;
-        if (openingAt(w, s, y)) continue;
-        cells.push({ w, s, y, cw: cw * .99, rh: rh * .99, ax, stone: y < FF + stoneTop && w.y0 === FF });
-      }
-    }
+    if (w.y0 === FF) clad(w, -99, stoneTop, 3.0, 1.4).forEach(pn => stoneP.push({ w: w, pn: pn }));
+    clad(w, w.y0 === FF ? stoneTop : -99, 999, 7, 6).forEach(pn => stucP.push({ w: w, pn: pn }));
   });
-  cells.sort((a, b) => a.y - b.y);
-  const sq = seq(A + S * .04, A + S * .5, cells.filter(c => c.stone).length, .1);
-  const uq = seq(A + S * .4, A + S * .9, cells.filter(c => !c.stone).length, .09);
-  let si = 0, ui = 0;
-  const mStone = { n: 'Dry‑stack stone veneer', s: 'enclosure', d: 'Quarried ledge stone over a drainage mat and lath, set with a full mortar bed and raked joints. Corners are returned with real corner stones, not mitres.' };
-  const mStuc = { n: 'Integral‑colour stucco', s: 'enclosure', d: 'Three‑coat system over paper and lath with a smooth sand finish, expansion joints at every change of plane and a weep screed at the base.' };
-  cells.forEach(cl => {
-    const pt = ptOn(cl.w, cl.s, cl.w.t / 2 + (cl.stone ? .44 : .36));
-    const t = cl.stone ? sq(si++) : uq(ui++);
-    P(cl.stone ? 'stone' : 'stucco', {
-      p: [pt[0], cl.y, pt[1]], s: cl.ax ? [cl.cw, cl.rh, cl.stone ? .5 : .28] : [cl.stone ? .5 : .28, cl.rh, cl.cw],
-      t0: t[0], t1: t[1], l: 'enclosure', a: cl.stone ? 'rise' : 'grow',
-      c: cl.stone ? [.44 + R() * .16, .40 + R() * .13, .35 + R() * .1] : null,
-      m: cl.stone ? mStone : mStuc
+  stoneP.sort((a, b) => a.pn.y - b.pn.y);
+  const sq = seq(A + S * .04, A + S * .5, stoneP.length, .1);
+  const uq = seq(A + S * .38, A + S * .88, stucP.length, .09);
+  const mStone = { n: 'Dry-stack stone veneer', s: 'enclosure', d: 'Quarried ledge stone over a drainage mat and lath, set with a full mortar bed and raked joints. Corners are returned with real corner stones, not mitres, and the base is held above the weep screed.' };
+  const mStuc = { n: 'Integral-colour stucco', s: 'enclosure', d: 'Three-coat system over two layers of paper and lath, floated to a fine sand finish. Control joints at every change of plane and a weep screed at the base.' };
+  stoneP.forEach((it, i) => {
+    const pt = ptOn(it.w, it.pn.s, it.w.t / 2 + .44), t = sq(i);
+    P('stone', {
+      p: [pt[0], it.pn.y, pt[1]],
+      s: it.pn.ax ? [it.pn.w * 1.01, it.pn.h * 1.01, .5] : [.5, it.pn.h * 1.01, it.pn.w * 1.01],
+      t0: t[0], t1: t[1], l: 'enclosure', a: 'rise',
+      c: [.40 + R() * .17, .37 + R() * .14, .33 + R() * .11], m: mStone
+    });
+  });
+  stucP.forEach((it, i) => {
+    const pt = ptOn(it.w, it.pn.s, it.w.t / 2 + .34), t = uq(i);
+    P('stucco', {
+      p: [pt[0], it.pn.y, pt[1]],
+      s: it.pn.ax ? [it.pn.w * 1.012, it.pn.h * 1.012, .26] : [.26, it.pn.h * 1.012, it.pn.w * 1.012],
+      t0: t[0], t1: t[1], l: 'enclosure', a: 'grow', m: mStuc
+    });
+  });
+  /* stone cap on the base course — reads as a real water table */
+  WALLS.filter(w => w.ext && w.y0 === FF).forEach((w, i) => {
+    const ax = Math.abs(w.ux) > .5, c = ptOn(w, w.L / 2, w.t / 2 + .5);
+    const t = seq(A + S * .46, A + S * .56, 12, .3)(i % 12);
+    P('marble', {
+      p: [c[0], stoneTop + .12, c[1]], s: ax ? [w.L, .24, .78] : [.78, .24, w.L],
+      t0: t[0], t1: t[1], l: 'enclosure', a: 'ext', ax: ax ? 'x' : 'z', sg: -1,
+      m: { n: 'Stone water table', s: 'enclosure', d: 'Sloped and drip-cut cap over the veneer base, flashed behind so nothing runs back into the wall.' }
     });
   });
   /* gable end finishes */
   ROOFS.forEach((rf, ri) => [rf.x0, rf.x1].forEach((gx, gi) => {
-    if (rf.key === 'main' && gi === 0) return;
-    const t = seq(A + S * .55, A + S * .8, 6, .3)(ri * 2 + gi);
+    if (rf.ng && rf.ng.indexOf(gi) >= 0) return;
+    const t = seq(A + S * .55, A + S * .8, 8, .3)(ri * 2 + gi);
     P('triFin', {
       p: [gx + (gi ? .3 : -.3), rf.plate + rf.rise / 2 + .2, rf.zc], s: [rf.half * 2, rf.rise, .3], r: [0, Math.PI / 2, 0],
-      t0: t[0], t1: t[1], l: 'enclosure', a: 'grow', m: { n: 'Gable finish', s: 'enclosure', d: 'Stucco carried up the gable with a drip screed at the rake and a ventilated cedar soffit behind.' }
+      t0: t[0], t1: t[1], l: 'enclosure', a: 'grow',
+      m: { n: 'Gable finish', s: 'enclosure', d: 'Stucco carried up the gable with a drip screed at the rake and a continuous vented cedar soffit behind.' }
     });
   }));
   /* timber accents at the entry */
@@ -991,25 +1002,39 @@
     const t = seq(A + S * .62, A + S * .86, 7, .3)(i);
     P('cedar', {
       p: [-9 + i * 1.5, FF + 6, -24.75], s: [.9, 12, .5], t0: t[0], t1: t[1], l: 'enclosure', a: 'rise',
-      m: { n: 'Vertical timber screen', s: 'enclosure', d: 'Rough‑sawn cedar battens on a concealed clip rail, spaced to filter afternoon light off the entry glass.' }
+      m: { n: 'Vertical timber screen', s: 'enclosure', d: 'Rough-sawn cedar battens on a concealed clip rail, spaced to filter afternoon light off the entry glass.' }
     });
   }
-  /* chimney */
-  for (let i = 0; i < 9; i++) {
-    const t = seq(A + S * .3, A + S * .62, 9, .25)(i);
+  /* chimney — one masonry mass, not a stack of loose blocks */
+  (function chimney() {
+    const t0 = A + S * .30, t1 = A + S * .58;
     P('stone', {
-      p: [26, FF + 1.6 + i * 3, 14], s: [5.2, 3, 5.2], t0: t[0], t1: t[1], l: 'enclosure', a: 'rise',
-      c: [.42 + R() * .16, .39 + R() * .12, .34 + R() * .1],
-      m: { n: 'Stone chimney', s: 'enclosure', d: 'Veneered chimney chase around a direct‑vent flue, with a cricket behind it and a stone cap over a stainless spark arrestor.' }
+      p: [26, FF + 13.6, 14], s: [5.4, 27.2, 5.4], t0: t0, t1: t1, l: 'enclosure', a: 'rise',
+      c: [.42, .385, .345],
+      m: { n: 'Stone chimney', s: 'enclosure', d: 'Veneered chase around a direct-vent flue, carried 2 ft above anything within 10 ft, with a cricket behind it and through-wall flashing at the roof line.' }
     });
-  }
-  /* exterior sconces */
-  const sc2 = [[-4, -24.8], [3, -24.8], [33, -24.8], [58.8, -12], [-32.8, 0], [18.8, 30], [-6.8, 30]];
-  sc2.forEach((s, i) => {
+    P('bronze', {
+      p: [26, FF + 27.55, 14], s: [6.3, .55, 6.3], t0: t1, t1: t1 + .004, l: 'enclosure', a: 'drop', h: 4,
+      m: { n: 'Chimney cap', s: 'enclosure', d: 'Sloped metal cap over a stainless spark arrestor and rain shield.' }
+    });
+    P('memb', {
+      p: [26, 23.4, 17.4], s: [6.4, .4, 4.4], r: [-.38, 0, 0], t0: t0 + .004, t1: t0 + .012, l: 'roofing', a: 'grow',
+      m: { n: 'Chimney cricket', s: 'roofing', d: 'Framed saddle behind the chase so water splits and runs around it instead of ponding on the uphill side.' }
+    });
+  })();
+  /* exterior sconces — dark housing with a small warm lens, dark-sky cut off */
+  const sc2 = [[-4, -24.8, 0], [3, -24.8, 0], [33, -24.8, 0], [58.8, -12, 1], [-32.8, 0, 1], [18.8, 30, 1], [-6.8, 30, 1]];
+  sc2.forEach((s2, i) => {
     const t = seq(A + S * .86, B, sc2.length, .3)(i);
+    const ax = s2[2] ? [.34, 1.5, .8] : [.8, 1.5, .34];
+    P('bronze', {
+      p: [s2[0], FF + 7.6, s2[1]], s: ax, t0: t[0], t1: t[1], l: 'enclosure', a: 'grow',
+      m: { n: 'Exterior sconce', s: 'enclosure', d: 'Dark-sky compliant bronze sconce with a fully shielded source, on the landscape lighting transformer so nothing glares off the glass at night.' }
+    });
     P('glow', {
-      p: [s[0], FF + 7.5, s[1]], s: [.6, 1.4, .6], t0: t[0], t1: t[1], l: 'enclosure', a: 'grow',
-      m: { n: 'Exterior sconce', s: 'enclosure', d: 'Dark‑sky compliant bronze sconce on the landscape lighting transformer, so the glass never glares at night.' }
+      p: [s2[0] + (s2[2] ? (s2[0] < 0 ? -.16 : .16) : 0), FF + 7.1, s2[1] + (s2[2] ? 0 : (s2[1] < 0 ? -.16 : .16))],
+      s: s2[2] ? [.1, .34, .5] : [.5, .34, .1], t0: t[0], t1: t[1], l: 'enclosure', a: 'grow',
+      m: { n: 'Sconce lens', s: 'enclosure', d: 'Warm 2700 K source behind a frosted lens, shielded above the horizontal.' }
     });
   });
 })();
@@ -1017,144 +1042,216 @@
 /* ═══ 13 · HARDSCAPE, POOL & LANDSCAPE ═══ */
 (function sitefin() {
   const A = PH.sitework.t0, B = PH.sitework.t1, S = B - A;
-  const path = [[-112, 14], [-70, 12], [-40, 2], [-14, -34], [22, -38], [46, -33]];
+
+  /* ── driveway: a continuous ribbon along the surveyed centreline ── */
   const drive = [];
-  for (let i = 0; i < path.length - 1; i++) {
-    const a = path[i], b = path[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    const n = Math.round(L / 5.5), ang = Math.atan2(b[0] - a[0], b[1] - a[1]);
+  for (let i = 0; i < DRIVE_PATH.length - 1; i++) {
+    const a = DRIVE_PATH[i], b = DRIVE_PATH[i + 1];
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const n = Math.max(2, Math.round(L / 5.2)), ang = Math.atan2(b[0] - a[0], b[1] - a[1]);
     for (let k = 0; k < n; k++) {
       const t = (k + .5) / n;
-      drive.push([lerp(a[0], b[0], t), lerp(a[1], b[1], t), ang, 17]);
+      drive.push([lerp(a[0], b[0], t), lerp(a[1], b[1], t), ang, 17, L / n * 1.06]);
     }
   }
-  for (let i = 0; i < 5; i++) for (let k = 0; k < 3; k++) drive.push([34 + i * 5.5, -28 + k * 4.6, 0, 5.4]);
-  const dq = seq(A + S * .02, A + S * .34, drive.length, .1);
-  drive.forEach((p, i) => {
+  /* garage apron */
+  for (let i = 0; i < 6; i++) for (let k = 0; k < 4; k++) drive.push([31 + i * 5.2, -30 + k * 4.6, 0, 5.3, 4.7]);
+  const dq = seq(A + S * .02, A + S * .32, drive.length, .1);
+  drive.forEach((pv, i) => {
     const t = dq(i);
     P('paver', {
-      p: [p[0], groundY(p[0], p[1]) + .22, p[1]], s: [p[3], .45, 5.4], r: [0, p[2], 0],
-      t0: t[0], t1: t[1], l: 'exterior', a: 'grow', c: [.52 + R() * .1, .51 + R() * .09, .49 + R() * .08],
-      m: { n: 'Granite paver driveway', s: 'exterior', d: 'Sawn granite setts on a bedding course over compacted base, with a permeable joint sand and a hidden drainage channel at the garage apron.' }
+      p: [pv[0], groundY(pv[0], pv[1]) + .22, pv[1]], s: [pv[3], .45, pv[4]], r: [0, pv[2], 0],
+      t0: t[0], t1: t[1], l: 'exterior', a: 'grow', c: [.50 + R() * .07, .49 + R() * .07, .47 + R() * .06],
+      m: { n: 'Granite paver driveway', s: 'exterior', d: 'Sawn granite setts on a bedding course over 8" of compacted base, with permeable joint sand and a trench drain at the garage apron.' }
     });
   });
+
+  /* ── entry walk and rear terrace, tied to the building ── */
   const terr = [];
-  for (let x = -8; x <= 4; x += 4) for (let z = -38; z <= -25; z += 4) terr.push([x, z, 'walk']);
-  for (let x = -8; x <= 20; x += 4.2) for (let z = 39; z <= 55; z += 4.2) terr.push([x, z, 'terrace']);
-  for (let x = 24; x <= 44; x += 4.2) for (let z = 28; z <= 34; z += 4.2) terr.push([x, z, 'terrace']);
-  const tq = seq(A + S * .2, A + S * .55, terr.length, .1);
-  terr.forEach((p, i) => {
+  for (let x = -13; x <= 5; x += 4.2) for (let z = -37; z <= -25; z += 4.2) terr.push([x, z, 'walk']);
+  for (let x = -6; x <= 18; x += 4.2) for (let z = 38.5; z <= 50; z += 4.2) terr.push([x, z, 'terrace']);
+  for (let x = 22; x <= 46; x += 4.2) for (let z = 25; z <= 37; z += 4.2) terr.push([x, z, 'terrace']);
+  const tq = seq(A + S * .18, A + S * .52, terr.length, .1);
+  terr.forEach((pv, i) => {
     const t = tq(i);
     P('paver', {
-      p: [p[0], groundY(p[0], p[1]) + .26, p[1]], s: [4.1, .5, 4.1], t0: t[0], t1: t[1], l: 'exterior', a: 'drop', h: 4,
-      c: [.58 + R() * .1, .57 + R() * .09, .55 + R() * .08],
-      m: { n: p[2] === 'walk' ? 'Entry walk' : 'Stone terrace', s: 'exterior', d: 'Thermal‑finish stone pavers on pedestals over a drainage layer, set dead level with the interior floor so the threshold disappears.' }
+      p: [pv[0], groundY(pv[0], pv[1]) + .26, pv[1]], s: [4.3, .5, 4.3], t0: t[0], t1: t[1], l: 'exterior', a: 'drop', h: 4,
+      c: [.57 + R() * .06, .56 + R() * .06, .54 + R() * .05],
+      m: { n: pv[2] === 'walk' ? 'Entry walk' : 'Stone terrace', s: 'exterior', d: 'Thermal-finish stone on pedestals over a drainage layer, set dead level with the interior floor so the threshold disappears.' }
     });
   });
-  /* pool */
-  const px2 = 30, pz = 46, pww = 34, pd = 15;
+
+  /* ── pool, set inside the terrace instead of floating on the lawn ── */
+  const px2 = 33, pz = 47, pww = 30, pd = 14;
   P('conc', {
-    p: [px2, -1.6, pz], s: [pww + 2, 6, pd + 2], t0: A + S * .3, t1: A + S * .42, l: 'exterior', a: 'rise',
-    m: { n: 'Pool shell', s: 'exterior', d: 'Shotcrete shell over a steel cage, with the plumbing, the perimeter overflow gutter and the vanishing edge formed into it before finish.' }
+    p: [px2, -1.6, pz], s: [pww + 2.4, 6, pd + 2.4], t0: A + S * .28, t1: A + S * .40, l: 'exterior', a: 'rise',
+    m: { n: 'Pool shell', s: 'exterior', d: 'Shotcrete shell over a steel cage, with the plumbing, the perimeter overflow gutter and the vanishing edge formed in before finish.' }
   });
   P('water', {
-    p: [px2, .9, pz], s: [pww, 2.4, pd], t0: A + S * .62, t1: A + S * .72, l: 'exterior', a: 'rise',
-    m: { n: 'Pool', s: 'exterior', d: 'Vanishing‑edge pool with a glass‑tile interior finish. The far wall spills into a catch basin below the terrace.' }
+    p: [px2, .95, pz], s: [pww, 2.4, pd], t0: A + S * .60, t1: A + S * .70, l: 'exterior', a: 'rise',
+    m: { n: 'Pool', s: 'exterior', d: 'Vanishing-edge pool with a glass-tile interior finish. The far wall spills into a catch basin under the terrace.' }
   });
-  for (let i = 0; i < 20; i++) {
-    const t = seq(A + S * .45, A + S * .6, 20, .2)(i);
+  for (let i = 0; i < 24; i++) {
+    const t = seq(A + S * .44, A + S * .58, 24, .2)(i);
+    const side = i < 12;
     P('marble', {
-      p: [px2 - pww / 2 + (i % 10 + .5) * pww / 10, 1.5, pz + (i < 10 ? -1 : 1) * (pd / 2 + .9)],
-      s: [pww / 10 * .98, .4, 1.8], t0: t[0], t1: t[1], l: 'exterior', a: 'grow',
+      p: [px2 - pww / 2 + (i % 12 + .5) * pww / 12, 1.55, pz + (side ? -1 : 1) * (pd / 2 + .95)],
+      s: [pww / 12 * 1.01, .42, 1.9], t0: t[0], t1: t[1], l: 'exterior', a: 'grow',
       m: { n: 'Pool coping', s: 'exterior', d: 'Bullnose stone coping with a 1/4" reveal over the tile line, set on a flexible bond so it never lifts.' }
     });
   }
+  /* pool barrier — required, and it was missing entirely */
+  (function poolFence() {
+    const pts = [[16, 36], [50, 36], [50, 58], [16, 58]];
+    let n = 0;
+    for (let i = 0; i < 4; i++) {
+      const a = pts[i], b = pts[(i + 1) % 4];
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]), cnt = Math.round(L / 5);
+      const ax = Math.abs(b[0] - a[0]) > Math.abs(b[1] - a[1]);
+      for (let k = 0; k < cnt; k++) {
+        if (i === 0 && k === Math.floor(cnt / 2)) continue; /* self-closing gate */
+        const u = (k + .5) / cnt;
+        const x = lerp(a[0], b[0], u), z = lerp(a[1], b[1], u);
+        const t = seq(A + S * .70, A + S * .82, 28, .25)((n++) % 28);
+        P('glass', {
+          p: [x, 2.9, z], s: ax ? [L / cnt * .96, 4.4, .12] : [.12, 4.4, L / cnt * .96],
+          t0: t[0], t1: t[1], l: 'exterior', a: 'rise',
+          m: { n: 'Pool safety barrier', s: 'exterior', d: '4 ft frameless glass barrier with a self-closing, self-latching gate latched above 54". Required by code around any pool.' }
+        });
+      }
+    }
+  })();
+
   P('stone', {
-    p: [-2, 1.6, 48], s: [7, 2.4, 7], t0: A + S * .58, t1: A + S * .66, l: 'exterior', a: 'rise',
-    m: { n: 'Fire terrace', s: 'exterior', d: 'Stone fire table plumbed to the gas line stubbed during the underground phase, with a keyed shutoff at the terrace edge.' }
+    p: [-2, 1.7, 44], s: [7, 2.4, 7], t0: A + S * .58, t1: A + S * .66, l: 'exterior', a: 'rise',
+    m: { n: 'Fire terrace', s: 'exterior', d: 'Stone fire table plumbed off the gas line stubbed during the underground phase, with a keyed emergency shutoff at the terrace edge.' }
   });
   P('stone', {
-    p: [16, 2.4, 42], s: [12, 4, 3.4], t0: A + S * .6, t1: A + S * .68, l: 'exterior', a: 'rise',
-    m: { n: 'Outdoor kitchen', s: 'exterior', d: 'Masonry counter with a built‑in grill, sink and refrigeration on a GFCI circuit under the covered loggia.' }
+    p: [14, 2.5, 41], s: [12, 4, 3.4], t0: A + S * .6, t1: A + S * .68, l: 'exterior', a: 'rise',
+    m: { n: 'Outdoor kitchen', s: 'exterior', d: 'Masonry counter with a built-in grill, sink and refrigeration on a GFCI circuit under the covered loggia.' }
   });
+
+  /* ── retaining wall, following the cut instead of cutting the lawn ── */
   for (let i = 0; i < 14; i++) {
-    const x = -46 + i * 5, z = 22 + i * .6;
-    const t = seq(A + S * .25, A + S * .5, 14, .2)(i);
+    const x = -52 + i * 4.6, z = 26 + i * 1.4;
+    const t = seq(A + S * .22, A + S * .46, 14, .2)(i);
     P('stone', {
-      p: [x, groundY(x, z) + 1.4, z], s: [5.1, 3.4, 2.2], t0: t[0], t1: t[1], l: 'exterior', a: 'rise',
-      c: [.42 + R() * .14, .40 + R() * .12, .36 + R() * .1],
-      m: { n: 'Site retaining wall', s: 'exterior', d: 'Battered dry‑stack wall with a drainage chimney and perforated pipe behind it, daylighted at the low end.' }
+      p: [x, groundY(x, z) + 1.5, z], s: [4.8, 3.6, 2.2], r: [0, .29, 0], t0: t[0], t1: t[1], l: 'exterior', a: 'rise',
+      c: [.40 + R() * .13, .38 + R() * .11, .34 + R() * .09],
+      m: { n: 'Site retaining wall', s: 'exterior', d: 'Battered dry-stack wall with a drainage chimney and perforated pipe behind it, daylighted at the low end.' }
     });
   }
-  for (let i = 0; i < 16; i++) {
-    const a = i / 16 * TAU, x = 14 + Math.cos(a) * 62, z = 6 + Math.sin(a) * 52;
-    const t = seq(A + S * .84, B, 16, .2)(i);
+
+  /* ── site lighting: low bollards along the drive and walk ── */
+  const lampPts = [];
+  for (let i = 0; i < DRIVE_PATH.length - 1; i++) {
+    const a = DRIVE_PATH[i], b = DRIVE_PATH[i + 1];
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(L / 26));
+    for (let k = 0; k < n; k++) {
+      const u = (k + .5) / n, nx = -(b[1] - a[1]) / L, nz = (b[0] - a[0]) / L;
+      lampPts.push([lerp(a[0], b[0], u) + nx * 11.5, lerp(a[1], b[1], u) + nz * 11.5]);
+    }
+  }
+  [[-15, -30], [-15, -38], [7, -30], [7, -38], [-8, 41], [20, 41], [20, 30]].forEach(q => lampPts.push(q));
+  lampPts.forEach((q, i) => {
+    const t = seq(A + S * .82, B, lampPts.length, .18)(i);
+    const gy = groundY(q[0], q[1]);
+    P('bronze', {
+      p: [q[0], gy + 1.35, q[1]], s: [.34, 2.7, .34], t0: t[0], t1: t[1], l: 'landscape', a: 'rise',
+      m: { n: 'Path bollard', s: 'landscape', d: 'Low-voltage bollard on an astronomic timer, fully shielded so the light lands on the path and not in anyone\'s eyes.' }
+    });
     P('glow', {
-      p: [x, groundY(x, z) + 1.4, z], s: [.4, .9, .4], t0: t[0], t1: t[1], l: 'landscape', a: 'rise',
-      m: { n: 'Landscape lighting', s: 'landscape', d: 'Low‑voltage path and uplights on an astronomic timer, aimed at night after the plants are in.' }
+      p: [q[0], gy + 2.45, q[1]], s: [.42, .16, .42], t0: t[0] + .002, t1: t[1] + .002, l: 'landscape', a: 'grow',
+      m: { n: 'Bollard lens', s: 'landscape', d: 'Downward-throwing 2700 K lens under a solid cap.' }
     });
-  }
+  });
+
+  /* ── planting: beds hug the building, specimens stay off the hardscape ── */
   const beds = [];
-  for (let i = 0; i < 30; i++) {
-    const a = R() * TAU, r = 44 + R() * 34;
-    const x = 12 + Math.cos(a) * r, z = 6 + Math.sin(a) * r * .8;
-    if (x > -36 && x < 62 && z > -28 && z < 42) continue;
+  for (let i = 0; i < 44; i++) {
+    const a = R() * TAU, r = 40 + R() * 46;
+    const x = 12 + Math.cos(a) * r, z = 6 + Math.sin(a) * r * .82;
+    if (!siteClear(x, z, 2)) continue;
     beds.push([x, z]);
   }
-  const bq = seq(A + S * .55, A + S * .9, beds.length, .12);
+  const bq = seq(A + S * .52, A + S * .88, Math.max(1, beds.length), .12);
   beds.forEach((b, i) => {
-    const t = bq(i);
+    const t = bq(i), gy = groundY(b[0], b[1]);
     P('mulch', {
-      p: [b[0], groundY(b[0], b[1]) + .2, b[1]], s: [9, .4, 7], t0: t[0], t1: t[1], l: 'landscape', a: 'grow',
-      m: { n: 'Planting bed', s: 'landscape', d: 'Imported topsoil and compost, drip irrigation on its own zone, then bark mulch held back from the trunk flare.' }
+      p: [b[0], gy + .2, b[1]], s: [8.5, .4, 6.5], r: [0, R() * .6, 0], t0: t[0], t1: t[1], l: 'landscape', a: 'grow',
+      m: { n: 'Planting bed', s: 'landscape', d: 'Imported topsoil and compost, drip irrigation on its own zone, then bark mulch held back off the trunk flare.' }
     });
-    P('leafy', {
-      p: [b[0] + 1, groundY(b[0], b[1]) + 1.4, b[1]], s: [3.6, 2.8, 3.6], t0: t[0] + .002, t1: t[1] + .006, l: 'landscape', a: 'grow',
-      c: [.22 + R() * .1, .38 + R() * .14, .18 + R() * .08],
-      m: { n: 'Shrub planting', s: 'landscape', d: 'Native and adapted species chosen for the exposure, planted slightly high so the crown never sits wet.' }
+    for (let k = 0; k < 2; k++) P('shrub', {
+      p: [b[0] + (k ? 2 : -1.6), gy + 1.15, b[1] + (k ? -1.2 : 1.1)], s: [3.2 + R() * 1.4, 2.3 + R() * 1.1, 3.2 + R() * 1.4],
+      t0: t[0] + .002, t1: t[1] + .006, l: 'landscape', a: 'grow',
+      c: [.19 + R() * .1, .34 + R() * .15, .16 + R() * .08],
+      m: { n: 'Shrub planting', s: 'landscape', d: 'Native and adapted species chosen for the exposure, set slightly high so the crown never sits wet.' }
     });
   });
-  for (let i = 0; i < 22; i++) {
-    const a = (i / 22) * TAU + .3, r = 62 + R() * 38;
+  /* specimen trees */
+  let placed = 0;
+  for (let i = 0; i < 60 && placed < 18; i++) {
+    const a = (i / 18) * TAU + R() * .6, r = 56 + R() * 42;
     const x = 12 + Math.cos(a) * r, z = 6 + Math.sin(a) * r * .85;
-    const h = 16 + R() * 15, t = seq(A + S * .6, B, 22, .18)(i);
+    if (!siteClear(x, z, 8)) continue;
+    const h = 17 + R() * 13, t = seq(A + S * .58, B, 18, .18)(placed);
+    const gy = groundY(x, z);
     P('trunk', {
-      p: [x, groundY(x, z) + h * .22, z], s: [1.1, h * .45, 1.1], t0: t[0], t1: t[1], l: 'landscape', a: 'rise',
-      m: { n: 'Specimen conifer', s: 'landscape', d: 'Craned in with a root ball, staked for one season and watered on a temporary bag system until it establishes.' }
+      p: [x, gy + h * .17, z], s: [1.0, h * .36, 1.0], t0: t[0], t1: t[1], l: 'landscape', a: 'rise',
+      m: { n: 'Specimen conifer', s: 'landscape', d: 'Craned in with a root ball, guyed for one season and watered on a temporary bag system until it establishes.' }
     });
     P('conifer', {
-      p: [x, groundY(x, z) + h * .58, z], s: [h * .48, h * .92, h * .48], t0: t[0] + .003, t1: t[1] + .006, l: 'landscape', a: 'rise',
-      c: [.13 + R() * .06, .28 + R() * .1, .17 + R() * .05],
-      m: { n: 'Specimen conifer', s: 'landscape', d: 'Craned in with a root ball, staked for one season and watered on a temporary bag system until it establishes.' }
+      p: [x, gy + h * .58, z], s: [h * .44, h * .88, h * .44], r: [0, R() * TAU, 0], t0: t[0] + .003, t1: t[1] + .006, l: 'landscape', a: 'rise',
+      c: [.11 + R() * .05, .25 + R() * .09, .15 + R() * .05],
+      m: { n: 'Specimen conifer', s: 'landscape', d: 'Craned in with a root ball, guyed for one season and watered on a temporary bag system until it establishes.' }
     });
+    placed++;
   }
-  for (let i = 0; i < 12; i++) {
-    const a = R() * TAU, r = 50 + R() * 40, x = 12 + Math.cos(a) * r, z = 6 + Math.sin(a) * r * .8;
-    const t = seq(A + S * .5, A + S * .8, 12, .25)(i);
-    P('stone', {
-      p: [x, groundY(x, z) + .9, z], s: [3 + R() * 4, 2 + R() * 2.4, 3 + R() * 3.4], r: [R(), R() * TAU, R() * .4],
-      t0: t[0], t1: t[1], l: 'landscape', a: 'drop', h: 8, c: [.36 + R() * .12, .35 + R() * .1, .33 + R() * .1],
+  /* boulders */
+  let bplaced = 0;
+  for (let i = 0; i < 50 && bplaced < 11; i++) {
+    const a = R() * TAU, r = 46 + R() * 44;
+    const x = 12 + Math.cos(a) * r, z = 6 + Math.sin(a) * r * .8;
+    if (!siteClear(x, z, 5)) continue;
+    const t = seq(A + S * .48, A + S * .78, 11, .25)(bplaced);
+    const w = 3.4 + R() * 3.6;
+    P('boulder', {
+      p: [x, groundY(x, z) + w * .26, z], s: [w, w * (.62 + R() * .3), w * (.8 + R() * .4)],
+      r: [R() * .4, R() * TAU, R() * .3], t0: t[0], t1: t[1], l: 'landscape', a: 'drop', h: 8,
+      c: [.34 + R() * .12, .33 + R() * .1, .31 + R() * .09],
       m: { n: 'Placed boulder', s: 'landscape', d: 'Local granite set with a third of its mass buried so it reads as though it was always there.' }
     });
+    bplaced++;
   }
 })();
 
 /* ═══ 14 · EXISTING VEGETATION ═══ */
 (function existing() {
   const rr = rng(4471);
-  for (let i = 0; i < 46; i++) {
-    const a = rr() * TAU, r = 26 + rr() * 96;
+  let n = 0;
+  for (let i = 0; i < 150 && n < 54; i++) {
+    const a = rr() * TAU, r = 34 + rr() * 104;
     const x = 10 + Math.cos(a) * r, z = 6 + Math.sin(a) * r * .86;
-    const inPad = x > -46 && x < 76 && z > -40 && z < 54;
-    const h = 14 + rr() * 20;
+    const inPad = x > -50 && x < 82 && z > -46 && z < 60;
+    /* trees used to land inside the trailer, on the terrace and in the
+       middle of the driveway — anything that survives the clearing has
+       to respect the finished site */
+    if (!inPad && !siteClear(x, z, 6)) continue;
+    n++;
+    const h = 16 + rr() * 22, conif = rr() > .38;
     const rem = inPad ? { x0: PH.clearing.t0 + .004 + rr() * .012, x1: PH.clearing.t0 + .02 + rr() * .012 } : {};
+    const mt = inPad
+      ? { n: 'Tree to be removed', s: 'site', d: 'Marked on the tree survey for removal. Stumps are ground out and the chips are stockpiled for the planting beds.' }
+      : { n: 'Protected tree', s: 'site', d: 'Inside the tree protection fence. Nothing is stored, parked or graded inside the drip line.' };
+    const gy = groundY(x, z);
     P('trunk', Object.assign({
-      p: [x, groundY(x, z) + h * .2, z], s: [1 + rr() * .5, h * .42, 1 + rr() * .5], t0: -.002, t1: -.001, l: 'site', a: 'grow',
-      m: { n: inPad ? 'Tree to be removed' : 'Protected tree', s: 'site', d: inPad ? 'Marked on the tree survey for removal. Stumps are ground out and the chips are stockpiled for the planting beds.' : 'Inside the tree protection fence. Nothing is stored, parked or graded inside the drip line.' }
+      p: [x, gy + h * .16, z], s: [.9 + rr() * .6, h * .34, .9 + rr() * .6], t0: -.002, t1: -.001, l: 'site', a: 'grow', m: mt
     }, rem));
-    P(rr() > .45 ? 'conifer' : 'leafy', Object.assign({
-      p: [x, groundY(x, z) + h * .56, z], s: [h * .5, h * .9, h * .5], t0: -.002, t1: -.001, l: 'site', a: 'grow',
-      c: [.15 + rr() * .1, .3 + rr() * .14, .16 + rr() * .07],
-      m: { n: inPad ? 'Tree to be removed' : 'Protected tree', s: 'site', d: inPad ? 'Marked on the tree survey for removal.' : 'Inside the tree protection fence.' }
+    P(conif ? 'conifer' : 'leafy', Object.assign({
+      p: [x, gy + h * (conif ? .58 : .64), z], s: conif ? [h * .44, h * .88, h * .44] : [h * .62, h * .58, h * .62],
+      r: [0, rr() * TAU, 0], t0: -.002, t1: -.001, l: 'site', a: 'grow',
+      c: conif ? [.10 + rr() * .06, .23 + rr() * .1, .14 + rr() * .05] : [.17 + rr() * .09, .32 + rr() * .13, .13 + rr() * .06],
+      m: mt
     }, rem));
   }
 })();
@@ -1176,18 +1273,18 @@ const MAT = {
   gear:    { tex: 'metal', ts: .8, sh: 1, r: .48, m: .65, env: 1 },
   insul:   { tex: 'fiber', ts: .8, r: 1, xr: .5 },
   foam:    { r: 1, xr: .5 },
-  gwb:     { tex: 'board', ts: .3, sh: 1, r: .94, xr: .08 },
+  gwb:     { tex: 'board', ts: .3, sh: 1, r: .94, xr: .08, nv: 1 },
   slate:   { tex: 'slate', ts: .55, sh: 1, r: .72, env: .8, xr: .07 },
-  seam:    { tex: 'metal', ts: .4, sh: 1, r: .36, m: .72, env: 1.3, xr: .07 },
-  memb:    { r: .88, xr: .06 },
-  wrap:    { tex: 'board', ts: .35, r: .85, xr: .07 },
+  seam:    { tex: 'metal', ts: .4, sh: 1, r: .38, m: .68, env: .9, xr: .07, nv: 1 },
+  memb:    { r: .88, xr: .06, nv: 1 },
+  wrap:    { tex: 'board', ts: .35, r: .85, xr: .07, nv: 1 },
   stone:   { tex: 'stone', ts: .16, sh: 1, r: .94, env: .5, xr: .10 },
-  stucco:  { tex: 'stucco', ts: .30, sh: 1, r: .92, xr: .10 },
+  stucco:  { tex: 'stucco', ts: .16, sh: 1, r: .92, xr: .10, nv: 1 },
   cedar:   { tex: 'wood', ts: .38, sh: 1, r: .76, xr: .14 },
-  bronze:  { tex: 'metal', ts: .9, sh: 1, r: .34, m: .92, env: 1.4 },
+  bronze:  { tex: 'metal', ts: .9, sh: 1, r: .46, m: .70, env: .75, nv: 1 },
   glass:   { sh: 0, r: .04, m: .18, o: .26, env: 2.4, xr: .12 },
   oak:     { tex: 'oak', ts: .3, sh: 1, r: .55, env: .7 },
-  marble:  { tex: 'concrete', ts: .12, sh: 1, r: .18, env: 1.5 },
+  marble:  { tex: 'concrete', ts: .12, sh: 1, r: .22, env: 1.1, nv: 1 },
   tileI:   { tex: 'concrete', ts: .3, sh: 1, r: .42, env: .9 },
   fixture: { sh: 1, r: .18, env: 1.5 },
   appl:    { tex: 'metal', ts: .8, sh: 1, r: .3, m: .85, env: 1.3 },
@@ -1196,12 +1293,19 @@ const MAT = {
   asph:    { tex: 'gravel', ts: .6, sh: 1, r: .96 },
   mulch:   { tex: 'gravel', ts: .7, sh: 1, r: 1 },
   trunk:   { tex: 'wood', ts: .5, sh: 1, r: .95 },
-  conifer: { sh: 1, r: .95 }, leafy: { sh: 1, r: .95 },
-  water:   { r: .03, m: .35, o: .8, env: 2.6 },
+  conifer: { sh: 1, r: .94, env: .35 }, leafy: { sh: 1, r: .94, env: .35 },
+  shrub:   { sh: 1, r: .96 },
+  boulder: { tex: 'stone', ts: .2, sh: 1, r: .96 },
+  water:   { r: .03, m: .35, o: .8, env: 2.6, nv: 1 },
   stake:   { r: .85 }, strline: { r: .8 },
-  glow:    { r: .35, e: 1 },
+  glow:    { r: .35, e: 1, nv: 1 },
   temp:    { tex: 'board', ts: .3, sh: 1, r: .78 },
   tarmac:  { tex: 'gravel', ts: .5, sh: 1, r: .95 },
+  safety:  { r: .93, sh: 1, nv: 1 },
+  cone:    { r: .86, sh: 1, nv: 1 },
+  tape:    { r: .82, nv: 1 },
+  fence:   { tex: 'metal', ts: 1.5, r: .78, m: .3, sh: 1, o: .82, nv: 1 },
+  fpost:   { tex: 'metal', ts: .6, r: .6, m: .45, sh: 1, nv: 1 },
   triOsb:  { tex: 'osb', ts: .26, sh: 1, r: .93, xr: .10 },
   triFin:  { tex: 'stucco', ts: .30, sh: 1, r: .92, xr: .10 },
   triLum:  { tex: 'wood', ts: .34, sh: 1, r: .82 }
@@ -1272,12 +1376,12 @@ for (const k in G) {
     });
     mesh.instanceColor.needsUpdate = true;
     mat.color.setHex(0xffffff);
-  } else if (n > 8 && k !== 'glass' && k !== 'water' && k !== 'glow') {
+  } else if (n > 8 && !rec.nv && k !== 'glass' && k !== 'water' && k !== 'glow') {
     /* subtle per-piece tonal variation kills the "moulded plastic" look */
     mesh.instanceColor = new TH.InstancedBufferAttribute(new Float32Array(n * 3), 3);
     const cc = new TH.Color(), base = new TH.Color(df.c);
     for (let i = 0; i < n; i++) {
-      cc.copy(base).offsetHSL((R() - .5) * .012, (R() - .5) * .05, (R() - .5) * .085);
+      cc.copy(base).offsetHSL((R() - .5) * .010, (R() - .5) * .04, (R() - .5) * .055);
       mesh.instanceColor.setXYZ(i, cc.r, cc.g, cc.b);
     }
     mesh.instanceColor.needsUpdate = true;
@@ -1285,7 +1389,16 @@ for (const k in G) {
   }
   g.mesh = mesh; g.mat = mat;
   scene.add(mesh); pickables.push(mesh);
-  g.list.forEach(o => { o._st = -1; });
+  /* time bounds: once a group is entirely behind or entirely ahead of the
+     playhead there is nothing to rewrite, so the whole loop can be skipped */
+  let tmin = 9, tmax = -9;
+  g.list.forEach(o => {
+    o._st = -1;
+    if (o.t0 < tmin) tmin = o.t0;
+    const hi = o.x1 !== undefined ? Math.max(o.t1, o.x1) : o.t1;
+    if (hi > tmax) tmax = hi;
+  });
+  g.tmin = tmin; g.tmax = tmax;
 }
 
 /* ═══════════════ PER-INSTANCE TRANSFORMS ════════════════════════ */
@@ -1318,9 +1431,17 @@ function writeInstance(o, u, v, mesh, i) {
   _m.compose(_v.set(px2, py, pz), _q, _s.set(sx, sy, sz));
   mesh.setMatrixAt(i, _m);
 }
+let groupsTouched = 0;
 function updateGroups() {
+  groupsTouched = 0;
   for (const k in G) {
     const g = G[k]; if (!g.mesh) continue;
+    if (!xformDirty) {
+      /* nothing in this group can have changed since the last frame */
+      if (T > g.tmax && lastT > g.tmax) continue;
+      if (T < g.tmin && lastT < g.tmin) continue;
+    }
+    groupsTouched++;
     const L = g.list, mesh = g.mesh;
     let dirty = false;
     for (let i = 0; i < L.length; i++) {

@@ -11,9 +11,10 @@ renderer.setPixelRatio(Math.min(devicePixelRatio || 1, DPR_CAP));
 renderer.setSize(root.clientWidth || innerWidth, root.clientHeight || innerHeight, false);
 renderer.outputEncoding = TH.sRGBEncoding;
 renderer.toneMapping = TH.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.06;
+renderer.toneMappingExposure = 1.0;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = SMALL ? TH.PCFShadowMap : TH.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = true;
 MAXANISO = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 buildTextures();
 
@@ -97,26 +98,40 @@ const clouds = [];
   }
 })();
 
-/* ── lights ── */
-const hemi = new TH.HemisphereLight(0xbcd4e8, 0x4a4237, .6);
+/* ── lights ──
+   The old rig stacked a bright hemisphere, an ambient and a fill on top
+   of the sun, which washed out every shadow and left the site flat. Key
+   light now carries the image; the ambient terms only fill it. The
+   shadow frustum tracks the camera target and tightens as you zoom, so
+   detail lands where you are actually looking instead of being smeared
+   across a 240-unit box. */
+const hemi = new TH.HemisphereLight(0xa8c6e4, 0x4a4438, .34);
 scene.add(hemi);
-const sun = new TH.DirectionalLight(0xfff2dc, 2.2);
+const sun = new TH.DirectionalLight(0xfff1d6, 2.6);
 sun.castShadow = true;
 sun.shadow.mapSize.set(SMALL ? 1024 : 2048, SMALL ? 1024 : 2048);
 const sc = sun.shadow.camera;
-sc.left = -112; sc.right = 132; sc.top = 128; sc.bottom = -108; sc.near = 30; sc.far = 500;
-sc.updateProjectionMatrix();
-sun.shadow.bias = -0.0006;
-sun.shadow.normalBias = .45;
+let shadowHalf = 0;
+sc.near = 20; sc.far = 620;
+function setShadowExtent(half) {
+  if (Math.abs(half - shadowHalf) < 2.5) return;
+  shadowHalf = half;
+  sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half;
+  sc.updateProjectionMatrix();
+}
+setShadowExtent(110);
+sun.shadow.bias = -0.00035;
+sun.shadow.normalBias = .22;
 scene.add(sun, sun.target);
-const amb = new TH.AmbientLight(0xffffff, .14);
+const amb = new TH.AmbientLight(0xdce8f4, .07);
 scene.add(amb);
-const fill = new TH.DirectionalLight(0xa8c0d8, .30);
-fill.position.set(-120, 60, -90);
+const fill = new TH.DirectionalLight(0x9fbcd8, .18);
+fill.position.set(-120, 55, -95);
 scene.add(fill);
 /* cool moonlight, keyed to night in 80-main.js */
-const moon = new TH.DirectionalLight(0x9db8dd, 0);
+const moon = new TH.DirectionalLight(0x8fb0dc, 0);
 moon.position.set(120, 180, -140);
+moon.castShadow = false;
 scene.add(moon);
 
 /* ── environment reflections (generated once from a neutral sky) ── */
@@ -182,9 +197,9 @@ const tCol = new TH.BufferAttribute(new Float32Array(tPos.count * 3), 3);
 terrainGeo.setAttribute('color', tCol);
 TEX.ground.map.repeat.set(30, 26); TEX.ground.nrm.repeat.set(30, 26);
 const terrainMat = new TH.MeshStandardMaterial({
-  vertexColors: true, roughness: .96, metalness: 0,
+  vertexColors: true, roughness: .93, metalness: 0,
   map: TEX.ground.map, normalMap: TEX.ground.nrm,
-  normalScale: new TH.Vector2(1.3, 1.3), envMapIntensity: .35
+  normalScale: new TH.Vector2(1.55, 1.55), envMapIntensity: .28
 });
 const terrain = new TH.Mesh(terrainGeo, terrainMat);
 terrain.receiveShadow = true;

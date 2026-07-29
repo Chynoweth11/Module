@@ -64,8 +64,17 @@ for (const k in GD) {
     geo: s.g === 'cyl' ? geoCyl : s.g === 'cone' ? geoCone : s.g === 'sph' ? geoSph : geoBox
   };
 }
-/* push an instance */
-function P(g, o) { G[g].list.push(o); return o; }
+/* push an instance — exact duplicates (same group, place, size, time)
+   are dropped so nothing ever z-fights with a copy of itself */
+const _seenP = {};
+function P(g, o) {
+  const k = g + '|' + o.p[0].toFixed(3) + ',' + o.p[1].toFixed(3) + ',' + o.p[2].toFixed(3) +
+    '|' + o.s[0].toFixed(3) + ',' + o.s[1].toFixed(3) + ',' + o.s[2].toFixed(3);
+  if (_seenP[k]) return o;
+  _seenP[k] = 1;
+  G[g].list.push(o);
+  return o;
+}
 
 /* triangular prism geometry for gable ends */
 const geoTri = (function () {
@@ -140,9 +149,13 @@ const WALLS = [
 const PLATES = [[-32, -24, 30, 24], [-6, 24, 18, 38], [30, -24, 58, 0]];
 /* roof planes: gables described by ridge line + eave */
 const ROOFS = [
-  { x0: -8, x1: 30, zc: 0, half: 24, plate: 13.7, rise: 10.0, ov: 2.6, mat: 'slate', key: 'main' },
+  { x0: -8, x1: 30, zc: 0, half: 24, plate: 13.7, rise: 10.0, ov: 2.6, mat: 'slate', key: 'main', ng: [0] },
   { x0: -6, x1: 18, zc: 31, half: 7, plate: 15.2, rise: 3.4, ov: 2.2, mat: 'slate', key: 'great' },
-  { x0: 30, x1: 58, zc: -12, half: 12, plate: 12.2, rise: 4.4, ov: 2.2, mat: 'seam', key: 'garage' }
+  { x0: 30, x1: 58, zc: -12, half: 12, plate: 12.2, rise: 4.4, ov: 2.2, mat: 'seam', key: 'garage' },
+  /* west wing was left with no roof plane at all — x -32..-8, z 2..24
+     was open to the sky. This closes the envelope; ng skips the gable
+     end where it lands against the tower. */
+  { x0: -32, x1: -8, zc: 13, half: 11, plate: 13.7, rise: 4.6, ov: 1.4, mat: 'slate', key: 'west', ng: [1] }
 ];
 const TOWER = { x0: -32, x1: -8, z0: -24, z1: 2, deck: 24.9, plate: 13.7 };
 
@@ -161,3 +174,178 @@ function ptOn(w, s, off) {
   off = off || 0;
   return [w.x1 + w.ux * s + w.nx * off, w.z1 + w.uz * s + w.nz * off];
 }
+
+/* ═══════════════ PANELIZATION ═══════════════════════════════════
+   Cladding, sheathing, drywall and insulation used to be laid out on
+   a fixed grid and any cell whose CENTRE landed in an opening was
+   dropped whole — which punched 3-ft holes around every window and
+   let the housewrap and the insulation read straight through the
+   finished wall. Instead: take the wall rectangle, subtract each
+   opening from it properly, then tile the remainder. Full coverage,
+   nothing overlapping the glass, no holes.                          */
+function wallRects(w, grow) {
+  grow = grow || 0;
+  let rects = [{ s0: 0, s1: w.L, y0: w.y0, y1: w.y0 + w.h }];
+  for (let i = 0; i < w.ops.length; i++) {
+    const op = w.ops[i];
+    const o = { s0: op[0] - grow, s1: op[1] + grow, y0: w.y0 + op[2] - grow, y1: w.y0 + op[3] + grow };
+    const out = [];
+    for (let k = 0; k < rects.length; k++) {
+      const r = rects[k];
+      if (o.s1 <= r.s0 || o.s0 >= r.s1 || o.y1 <= r.y0 || o.y0 >= r.y1) { out.push(r); continue; }
+      if (o.y0 > r.y0) out.push({ s0: r.s0, s1: r.s1, y0: r.y0, y1: o.y0 });
+      if (o.y1 < r.y1) out.push({ s0: r.s0, s1: r.s1, y0: o.y1, y1: r.y1 });
+      const yb = Math.max(r.y0, o.y0), yt = Math.min(r.y1, o.y1);
+      if (yt - yb > .01) {
+        if (o.s0 > r.s0) out.push({ s0: r.s0, s1: o.s0, y0: yb, y1: yt });
+        if (o.s1 < r.s1) out.push({ s0: o.s1, s1: r.s1, y0: yb, y1: yt });
+      }
+    }
+    rects = [];
+    for (let k = 0; k < out.length; k++)
+      if (out[k].s1 - out[k].s0 > .1 && out[k].y1 - out[k].y0 > .1) rects.push(out[k]);
+  }
+  return rects;
+}
+/* tile the solid part of a wall into panels no bigger than maxW × maxH */
+function panelize(w, maxW, maxH, grow) {
+  const out = [], ax = Math.abs(w.ux) > .5, rects = wallRects(w, grow);
+  for (let i = 0; i < rects.length; i++) {
+    const r = rects[i], W = r.s1 - r.s0, H = r.y1 - r.y0;
+    const nc = Math.max(1, Math.round(W / maxW)), nr = Math.max(1, Math.round(H / maxH));
+    const cw = W / nc, ch = H / nr;
+    for (let c = 0; c < nc; c++) for (let k = 0; k < nr; k++)
+      out.push({ s: r.s0 + (c + .5) * cw, y: r.y0 + (k + .5) * ch, w: cw, h: ch, ax: ax, wall: w });
+  }
+  return out;
+}
+/* stud bays that are actually framed (not inside an opening) */
+function studBays(w, spacing) {
+  const out = [], n = Math.max(2, Math.floor((w.L - .5) / (spacing || 1.333)));
+  for (let i = 0; i < n; i++) {
+    const s = .3 + (i + .5) * (w.L - .6) / n;
+    const op = inOpenSpan(w, s);
+    const y0 = op ? w.y0 + op[3] + 1.2 : w.y0 + .3;
+    const y1 = w.y0 + w.h - .3;
+    if (y1 - y0 < .8) continue;
+    out.push({ s: s, y0: y0, y1: y1, ax: Math.abs(w.ux) > .5 });
+  }
+  return out;
+}
+
+/* ═══════════════ SITE KEEP-OUT ZONES ════════════════════════════
+   Vegetation was landing on the terraces, inside the driveway and
+   straight through the site trailer. Everything the landscape has to
+   stay clear of lives here so placement can be tested against it.   */
+const KEEPOUT = [
+  { x0: -40, z0: -32, x1: 66, z1: 46, n: 'building' },
+  { x0: -12, z0: 34, x1: 54, z1: 62, n: 'terrace & pool' },
+  { x0: -14, z0: -44, x1: 8, z1: -22, n: 'entry court' },
+  { x0: -78, z0: -12, x1: -44, z1: 24, n: 'laydown & trailer' },
+  { x0: -60, z0: -46, x1: -34, z1: -26, n: 'sanitation & bins' },
+  { x0: 26, z0: -36, x1: 60, z1: -20, n: 'garage apron' }
+];
+const DRIVE_PATH = [[-118, 14], [-70, 12], [-40, 2], [-14, -34], [22, -38], [46, -33]];
+function nearDrive(x, z, w) {
+  for (let i = 0; i < DRIVE_PATH.length - 1; i++) {
+    const a = DRIVE_PATH[i], b = DRIVE_PATH[i + 1];
+    if (segDist(x, z, a[0], a[1], b[0], b[1]) < w) return true;
+  }
+  return false;
+}
+function siteClear(x, z, pad) {
+  pad = pad === undefined ? 4 : pad;
+  for (let i = 0; i < KEEPOUT.length; i++) {
+    const k = KEEPOUT[i];
+    if (x > k.x0 - pad && x < k.x1 + pad && z > k.z0 - pad && z < k.z1 + pad) return false;
+  }
+  return !nearDrive(x, z, 13 + pad);
+}
+
+/* ═══════════════ BETTER NATURAL GEOMETRY ════════════════════════
+   Cones and spheres read as cheap. These merge a few primitives into
+   one unit-box geometry so the instancing cost is unchanged.        */
+function mergeParts(parts) {
+  let n = 0;
+  const bufs = [];
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    const g = p.geo.index ? p.geo.toNonIndexed() : p.geo.clone();
+    const m = new TH.Matrix4().compose(
+      new TH.Vector3(p.p[0], p.p[1], p.p[2]),
+      new TH.Quaternion().setFromEuler(new TH.Euler(p.r ? p.r[0] : 0, p.r ? p.r[1] : 0, p.r ? p.r[2] : 0)),
+      new TH.Vector3(p.s[0], p.s[1], p.s[2]));
+    g.applyMatrix4(m);
+    if (!g.attributes.normal) g.computeVertexNormals();
+    bufs.push(g); n += g.attributes.position.count;
+  }
+  const pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3);
+  let o = 0;
+  for (let i = 0; i < bufs.length; i++) {
+    pos.set(bufs[i].attributes.position.array, o);
+    nrm.set(bufs[i].attributes.normal.array, o);
+    o += bufs[i].attributes.position.count * 3;
+    bufs[i].dispose();
+  }
+  const out = new TH.BufferGeometry();
+  out.setAttribute('position', new TH.BufferAttribute(pos, 3));
+  out.setAttribute('normal', new TH.BufferAttribute(nrm, 3));
+  return out;
+}
+/* layered conifer — five skirts of needles, not one smooth cone */
+const geoConifer = (function () {
+  const c = new TH.ConeGeometry(.5, 1, 9, 1);
+  const parts = [], L = 5;
+  for (let i = 0; i < L; i++) {
+    const u = i / (L - 1);
+    const rad = .5 * (1 - u * .74);
+    const hh = .40 - u * .13;
+    const y = -.5 + .12 + u * .80;
+    parts.push({ geo: c, p: [0, y + hh * .5, 0], s: [rad * 2, hh, rad * 2], r: [0, i * .7, 0] });
+  }
+  const g = mergeParts(parts);
+  c.dispose();
+  return g;
+})();
+/* broadleaf crown — overlapping lobes */
+const geoBroadleaf = (function () {
+  const s = new TH.SphereGeometry(.5, 8, 6), parts = [], rr = rng(5150);
+  parts.push({ geo: s, p: [0, .04, 0], s: [.92, .86, .92] });
+  for (let i = 0; i < 5; i++) {
+    const a = i / 5 * TAU + rr() * .6, r = .24 + rr() * .12;
+    parts.push({
+      geo: s, p: [Math.cos(a) * r, -.06 + rr() * .34, Math.sin(a) * r],
+      s: [.46 + rr() * .24, .42 + rr() * .22, .46 + rr() * .24]
+    });
+  }
+  const g = mergeParts(parts); s.dispose(); return g;
+})();
+/* irregular boulder */
+const geoRock = (function () {
+  const g = new TH.IcosahedronGeometry(.5, 1).toNonIndexed();
+  const p = g.attributes.position.array, rr = rng(8821);
+  const seen = {};
+  for (let i = 0; i < p.length; i += 3) {
+    const k = (p[i] * 97 | 0) + ',' + (p[i + 1] * 97 | 0) + ',' + (p[i + 2] * 97 | 0);
+    if (!seen[k]) seen[k] = [.72 + rr() * .5, .58 + rr() * .34, .72 + rr() * .5];
+    const f = seen[k];
+    p[i] *= f[0]; p[i + 1] *= f[1]; p[i + 2] *= f[2];
+  }
+  g.computeVertexNormals();
+  return g;
+})();
+/* shrub — low dense mound */
+const geoShrub = (function () {
+  const s = new TH.SphereGeometry(.5, 7, 5), parts = [], rr = rng(3311);
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * TAU;
+    parts.push({ geo: s, p: [Math.cos(a) * .2, -.12 + rr() * .2, Math.sin(a) * .2], s: [.6 + rr() * .2, .5 + rr() * .2, .6 + rr() * .2] });
+  }
+  const g = mergeParts(parts); s.dispose(); return g;
+})();
+G.conifer.geo = geoConifer;
+G.leafy.geo = geoBroadleaf;
+G.shrub = { key: 'shrub', list: [], def: GD.leafy, geo: geoShrub };
+GD.shrub = GD.leafy;
+G.boulder = { key: 'boulder', list: [], def: GD.stone, geo: geoRock };
+GD.boulder = GD.stone;
