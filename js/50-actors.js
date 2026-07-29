@@ -436,6 +436,10 @@ const CREWM = (function () {
     { geo: geoBox, p: [0, .1, 0], s: [.46, 2.8, .46] },
     { geo: geoBox, p: [0, -1.4, .1], s: [.54, .5, .8] }
   ]);
+  const gTool = mergeParts([
+    { geo: geoBox, p: [0, 0, 0], s: [.18, 1.5, .18] },
+    { geo: geoBox, p: [0, .78, .12], s: [.34, .5, .74] }
+  ]);
   const gHarness = mergeParts([
     { geo: geoBox, p: [-.34, .1, 0], s: [.2, 2.3, .96] },
     { geo: geoBox, p: [.34, .1, 0], s: [.2, 2.3, .96] },
@@ -452,6 +456,7 @@ const CREWM = (function () {
     armR: instMesh(gArm, glove, MAXCREW),
     legL: instMesh(gLeg, boot, MAXCREW),
     legR: instMesh(gLeg, boot, MAXCREW),
+    tool: instMesh(gTool, pmat(0x9aa1a8, .45, .55), MAXCREW),
     harness: instMesh(gHarness, harn, MAXCREW, false)
   };
 })();
@@ -539,10 +544,16 @@ const crewCount = ph => ph.crew.length ? Math.min(MAXCREW, ph.crew.reduce((a, c)
 let crewActive = 0;
 const _cm = new TH.Matrix4(), _cq = new TH.Quaternion(), _ce = new TH.Euler(), _cv = new TH.Vector3(), _cs = new TH.Vector3();
 const HIDEC = new TH.Matrix4().compose(new TH.Vector3(0, -9999, 0), new TH.Quaternion(), new TH.Vector3(0, 0, 0));
-function setPart(im, i, x, y, z, ry, rx, sy) {
+const _cv2 = new TH.Vector3();
+function setPart(im, i, x, y, z, ry, rx, off) {
   _ce.set(rx || 0, ry, 0);
   _cq.setFromEuler(_ce);
-  _cm.compose(_cv.set(x, y, z), _cq, _cs.set(1, sy === undefined ? 1 : sy, 1));
+  let px = x, py = y, pz = z;
+  if (off) {
+    _cv2.set(off[0], off[1], off[2]).applyQuaternion(_cq);
+    px += _cv2.x; py += _cv2.y; pz += _cv2.z;
+  }
+  _cm.compose(_cv.set(px, py, pz), _cq, _cs.set(1, 1, 1));
   im.setMatrixAt(i, _cm);
 }
 function updateCrew() {
@@ -584,7 +595,11 @@ function updateCrew() {
     const cf = Math.cos(face), sf = Math.sin(face);
     const ax = .95 * cf, az = -.95 * sf;
     setPart(CREWM.armL, i, x - ax, yb + 4.2, z - az, face, -.5 - work * .55);
-    setPart(CREWM.armR, i, x + ax, yb + 4.2, z + az, face, -.5 + work * .55);
+    const rArm = -.5 + work * .55;
+    setPart(CREWM.armR, i, x + ax, yb + 4.2, z + az, face, rArm);
+    /* most trades are carrying something */
+    if (i % 3 !== 0) setPart(CREWM.tool, i, x + ax, yb + 4.2, z + az, face, rArm, [0, -1.35, .1]);
+    else CREWM.tool.setMatrixAt(i, HIDEC);
     const lx = .42 * cf, lz = -.42 * sf;
     setPart(CREWM.legL, i, x - lx, yb + 1.55, z - lz, face, bob * .42);
     setPart(CREWM.legR, i, x + lx, yb + 1.55, z + lz, face, -bob * .42);

@@ -76,6 +76,12 @@ function updateSky(dt) {
   scene.fog.far = 1800 - cloudy * 820 - nite * 300;
   renderer.setClearColor(_fogC);
 
+  /* the surrounding ground picks up the same snow cover as the site */
+  const snowNow = flags.wx ? snowCover(day) : 0;
+  apron.material.color.setRGB(1 - snowNow * .06, 1 - snowNow * .04, 1 - snowNow * .01);
+  apron.material.emissive.setRGB(snowNow * .30, snowNow * .32, snowNow * .35);
+  apron.material.emissiveIntensity = light * .8 + .12;
+
   /* clouds drift; denser cover when weather says so */
   for (let i = 0; i < clouds.length; i++) {
     const m = clouds[i];
@@ -167,7 +173,8 @@ function adaptQuality(dt) {
 }
 
 /* ── frame loop ── */
-let started = false;
+let started = false, shadowTick = true;
+renderer.shadowMap.autoUpdate = false;
 function frame(now) {
   requestAnimationFrame(frame);
   const t = now * .001;
@@ -188,6 +195,11 @@ function frame(now) {
   updateSky(dt);
   updateCamera(dt);
   adaptQuality(dt);
+  /* the shadow map is the single most expensive pass in the frame and the
+     sun moves slowly — re-rendering it on alternate frames is free-looking
+     and roughly halves its cost */
+  shadowTick = !shadowTick;
+  renderer.shadowMap.needsUpdate = shadowTick;
   renderer.render(scene, camera);
 }
 requestAnimationFrame(frame);

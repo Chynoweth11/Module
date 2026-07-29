@@ -4,7 +4,9 @@
   "description": "Cinematic procedural construction time-lapse of the Aurora Ridge Residence (three.js, no build step)",
   "scripts": {
     "start": "http-server . -p 8080 -c-1 -o",
-    "dev": "http-server . -p 8080 -c-1"
+    "dev": "http-server . -p 8080 -c-1",
+    "check": "node tools/run.js",
+    "audit": "node tools/audit.js"
   },
   "license": "MIT",
   "devDependencies": {

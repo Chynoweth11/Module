@@ -311,6 +311,54 @@ aoDecal.position.set(12, .06, 4);
 aoDecal.renderOrder = 1;
 scene.add(aoDecal);
 
+/* ── surrounding ground ────────────────────────────────────────────
+   The detailed site mesh is 280 x 240 and its edge was reading as a
+   cliff against the sky. This is a coarse static apron that carries
+   the natural grade out to the ridge line. It never changes, so it
+   costs nothing per frame; heights match natural() exactly at the
+   seam, so there is no visible joint. */
+const apron = (function () {
+  const verts = [], cols = [], STEP = 22, FAR = 760;
+  const HX = SITE_W / 2, HZ = SITE_D / 2;
+  const c = new TH.Color();
+  function hAt(x, z) {
+    const d = Math.max(Math.abs(x) / FAR, Math.abs(z) / FAR);
+    /* settle towards a base plane far out so the noise does not ripple
+       all the way to the horizon */
+    return lerp(natural(x, z), -8 - x * .012, smooth((d - .35) / .55));
+  }
+  function push(x, z) {
+    const y = hAt(x, z);
+    verts.push(x, y, z);
+    const n = (Math.sin(x * .31) * Math.cos(z * .27) + 1) * .5;
+    c.setRGB(.208 + n * .055, .286 + n * .062, .142 + n * .030);
+    cols.push(c.r, c.g, c.b);
+  }
+  function quad(x0, z0, x1, z1) {
+    push(x0, z0); push(x1, z0); push(x1, z1);
+    push(x0, z0); push(x1, z1); push(x0, z1);
+  }
+  for (let x = -FAR; x < FAR - 1; x += STEP) {
+    for (let z = -FAR; z < FAR - 1; z += STEP) {
+      const x1 = Math.min(x + STEP, FAR), z1 = Math.min(z + STEP, FAR);
+      const cx = (x + x1) / 2, cz = (z + z1) / 2;
+      if (cx > -HX && cx < HX && cz > -HZ && cz < HZ) continue;   /* site sits here */
+      quad(x, z, x1, z1);
+    }
+  }
+  const g = new TH.BufferGeometry();
+  g.setAttribute('position', new TH.Float32BufferAttribute(verts, 3));
+  g.setAttribute('color', new TH.Float32BufferAttribute(cols, 3));
+  g.computeVertexNormals();
+  const m = new TH.Mesh(g, new TH.MeshStandardMaterial({
+    vertexColors: true, roughness: .97, metalness: 0, envMapIntensity: .2
+  }));
+  m.receiveShadow = false;
+  m.frustumCulled = false;
+  scene.add(m);
+  return m;
+})();
+
 /* distant ridges */
 (function ridges() {
   const g = new TH.BufferGeometry(), N = 132, verts = [], cols = [];

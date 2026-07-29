@@ -231,6 +231,19 @@ function buildTextures() {
       px(D, i, k * .99, k * 1.02, k * .94);
     }
   }, 3.4);
+  /* foliage — needle / leaf clumping so canopies are not flat colour */
+  const lf = noiseField(256, 46, 3, 131), lc = noiseField(256, 9, 3, 132);
+  surface('foliage', 256, (D, H, n) => {
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const i = y * n + x;
+      const clump = lc[i];
+      const needle = lf[i] + Math.sin(x * 2.3 + y * 1.1) * .06;
+      const k = .74 + (needle - .5) * .34 + (clump - .5) * .30;
+      H[i] = needle * .62 + clump * .38;
+      /* warmer at the tips, bluer in the shaded interior */
+      px(D, i, k * (.82 + clump * .22), k * (1.02 - clump * .06), k * (.72 + clump * .10));
+    }
+  }, 2.2);
   /* insulation batt — fibrous */
   const ff = noiseField(128, 32, 2, 121);
   surface('fiber', 128, (D, H, n) => {

@@ -1005,6 +1005,62 @@
       m: { n: 'Vertical timber screen', s: 'enclosure', d: 'Rough-sawn cedar battens on a concealed clip rail, spaced to filter afternoon light off the entry glass.' }
     });
   }
+  /* ── window sills, head drips and corner trim ──────────────────
+     Openings were reading as flat black rectangles punched in a flat
+     wall. A projecting sill and a head drip give the reveal a shadow
+     line, which is most of what makes a facade look built. */
+  (function reveals() {
+    const items = [];
+    WALLS.filter(w => w.ext).forEach(w => w.ops.forEach(op => {
+      if (op[4] === 'garage') return;
+      items.push({ w: w, op: op });
+    }));
+    const q = seq(A + S * .5, A + S * .84, Math.max(1, items.length), .18);
+    items.forEach((it, i) => {
+      const w = it.w, op = it.op, ax = Math.abs(w.ux) > .5;
+      const c = ptOn(w, (op[0] + op[1]) / 2, w.t / 2 + .48);
+      const span = op[1] - op[0], t = q(i);
+      if (op[2] > .5) P('marble', {
+        p: [c[0], w.y0 + op[2] - .18, c[1]],
+        s: ax ? [span + .9, .3, 1.0] : [1.0, .3, span + .9],
+        t0: t[0], t1: t[1], l: 'enclosure', a: 'grow',
+        m: { n: 'Stone sill', s: 'enclosure', d: 'Sloped and drip-cut sill projecting past the wall face, set on a pan flashing that turns up at the jambs and out over the veneer.' }
+      });
+      P('bronze', {
+        p: [c[0], w.y0 + op[3] + .2, c[1]],
+        s: ax ? [span + .9, .22, .9] : [.9, .22, span + .9],
+        t0: t[0], t1: t[1], l: 'enclosure', a: 'grow',
+        m: { n: 'Head flashing', s: 'enclosure', d: 'Metal drip over the head with end dams, lapped behind the weather barrier so water is thrown clear of the unit.' }
+      });
+    });
+  })();
+  /* outside corners get a return, not a butt joint */
+  (function corners() {
+    const pts = [];
+    WALLS.filter(w => w.ext).forEach(w => { pts.push([w.x1, w.z1, w.y0, w.h]); });
+    const seen = {};
+    pts.forEach((pt, i) => {
+      const k = pt[0].toFixed(1) + ',' + pt[1].toFixed(1) + ',' + pt[2].toFixed(1);
+      if (seen[k]) return; seen[k] = 1;
+      const t = seq(A + S * .52, A + S * .9, Math.max(1, pts.length), .2)(i);
+      P('stucco', {
+        p: [pt[0], pt[2] + pt[3] / 2, pt[1]], s: [1.5, pt[3], 1.5],
+        t0: t[0], t1: t[1], l: 'enclosure', a: 'rise',
+        m: { n: 'Corner return', s: 'enclosure', d: 'The finish turns the corner as a solid return with a control joint just off the corner, so the crack that always wants to form there is put where it belongs.' }
+      });
+    });
+  })();
+  /* downspouts — the gutters had nowhere to discharge */
+  (function leaders() {
+    const drops = [[-32.6, -24.6], [30.6, -24.6], [30.6, 24.6], [-32.6, 24.6], [58.6, -24.6], [58.6, .6], [18.6, 38.6], [-6.6, 38.6]];
+    drops.forEach((d2, i) => {
+      const t = seq(A + S * .8, B, drops.length, .25)(i);
+      P('bronze', {
+        p: [d2[0], FF + 6.4, d2[1]], s: [.55, 12.8, .55], t0: t[0], t1: t[1], l: 'enclosure', a: 'rise',
+        m: { n: 'Downspout leader', s: 'enclosure', d: 'Bronze leader into a buried drain line that daylights well away from the foundation — roof water is the single most common cause of a wet basement.' }
+      });
+    });
+  })();
   /* chimney — one masonry mass, not a stack of loose blocks */
   (function chimney() {
     const t0 = A + S * .30, t1 = A + S * .58;
@@ -1282,7 +1338,7 @@ const MAT = {
   stucco:  { tex: 'stucco', ts: .16, sh: 1, r: .92, xr: .10, nv: 1 },
   cedar:   { tex: 'wood', ts: .38, sh: 1, r: .76, xr: .14 },
   bronze:  { tex: 'metal', ts: .9, sh: 1, r: .46, m: .70, env: .75, nv: 1 },
-  glass:   { sh: 0, r: .04, m: .18, o: .26, env: 2.4, xr: .12 },
+  glass:   { sh: 0, r: .035, m: .22, o: .38, env: 3.2, xr: .12, nv: 1 },
   oak:     { tex: 'oak', ts: .3, sh: 1, r: .55, env: .7 },
   marble:  { tex: 'concrete', ts: .12, sh: 1, r: .22, env: 1.1, nv: 1 },
   tileI:   { tex: 'concrete', ts: .3, sh: 1, r: .42, env: .9 },
@@ -1292,9 +1348,10 @@ const MAT = {
   paver:   { tex: 'concrete', ts: .25, sh: 1, r: .88 },
   asph:    { tex: 'gravel', ts: .6, sh: 1, r: .96 },
   mulch:   { tex: 'gravel', ts: .7, sh: 1, r: 1 },
-  trunk:   { tex: 'wood', ts: .5, sh: 1, r: .95 },
-  conifer: { sh: 1, r: .94, env: .35 }, leafy: { sh: 1, r: .94, env: .35 },
-  shrub:   { sh: 1, r: .96 },
+  trunk:   { tex: 'wood', ts: .8, sh: 1, r: .95 },
+  conifer: { tex: 'foliage', ts: .30, sh: 1, r: .94, env: .3 },
+  leafy:   { tex: 'foliage', ts: .26, sh: 1, r: .94, env: .3 },
+  shrub:   { tex: 'foliage', ts: .5, sh: 1, r: .95, env: .25 },
   boulder: { tex: 'stone', ts: .2, sh: 1, r: .96 },
   water:   { r: .03, m: .35, o: .8, env: 2.6, nv: 1 },
   stake:   { r: .85 }, strline: { r: .8 },
@@ -1460,6 +1517,10 @@ function updateGroups() {
     if (dirty) mesh.instanceMatrix.needsUpdate = true;
   }
 }
+/* the build is complete — the dedupe table has done its job and would
+   otherwise sit on ~9k keys for the life of the page */
+for (const _k in _seenP) delete _seenP[_k];
+
 /* cutaway: fade the enclosure so the systems inside stay legible */
 let revealApplied = -1;
 function applyReveal() {

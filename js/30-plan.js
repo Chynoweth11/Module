@@ -149,13 +149,13 @@ const WALLS = [
 const PLATES = [[-32, -24, 30, 24], [-6, 24, 18, 38], [30, -24, 58, 0]];
 /* roof planes: gables described by ridge line + eave */
 const ROOFS = [
-  { x0: -8, x1: 30, zc: 0, half: 24, plate: 13.7, rise: 10.0, ov: 2.6, mat: 'slate', key: 'main', ng: [0] },
+  /* main gable now spans the whole main level. It previously started at
+     x -8, which left the west wing open to the sky; patching that with a
+     second lower gable only moved the hole to the ridge junction. The
+     tower simply penetrates this plane, the way a turret always does. */
+  { x0: -32, x1: 30, zc: 0, half: 24, plate: 13.7, rise: 10.0, ov: 2.6, mat: 'slate', key: 'main' },
   { x0: -6, x1: 18, zc: 31, half: 7, plate: 15.2, rise: 3.4, ov: 2.2, mat: 'slate', key: 'great' },
   { x0: 30, x1: 58, zc: -12, half: 12, plate: 12.2, rise: 4.4, ov: 2.2, mat: 'seam', key: 'garage' },
-  /* west wing was left with no roof plane at all — x -32..-8, z 2..24
-     was open to the sky. This closes the envelope; ng skips the gable
-     end where it lands against the tower. */
-  { x0: -32, x1: -8, zc: 13, half: 11, plate: 13.7, rise: 4.6, ov: 1.4, mat: 'slate', key: 'west', ng: [1] }
 ];
 const TOWER = { x0: -32, x1: -8, z0: -24, z1: 2, deck: 24.9, plate: 13.7 };
 
@@ -343,6 +343,12 @@ const geoShrub = (function () {
   }
   const g = mergeParts(parts); s.dispose(); return g;
 })();
+/* trunks taper — a straight cylinder reads as a dowel */
+const geoTrunk = (function () {
+  const g = new TH.CylinderGeometry(.32, .5, 1, 9, 1);
+  return g;
+})();
+G.trunk.geo = geoTrunk;
 G.conifer.geo = geoConifer;
 G.leafy.geo = geoBroadleaf;
 G.shrub = { key: 'shrub', list: [], def: GD.leafy, geo: geoShrub };
