@@ -25,7 +25,13 @@ function updateSky(dt) {
 
   /* sun elevation: continuous cycles when the sun toggle is on,
      otherwise pinned to a pleasant mid-morning */
-  const ph = flags.sun ? ((T * SUN_CYCLES) % 1) : .3;
+  /* Half the cycle used to be night, so nearly half of every playthrough
+     was unreadably dark. Warping the phase gives a long day, a quick
+     sunset, a short night and a quick dawn — the way a time-lapse of a
+     jobsite actually reads. */
+  const raw = flags.sun ? ((T * SUN_CYCLES) % 1) : .18;
+  const DAYFRAC = .76;
+  const ph = raw < DAYFRAC ? (raw / DAYFRAC) * .5 : .5 + ((raw - DAYFRAC) / (1 - DAYFRAC)) * .5;
   const ang = ph * TAU;
   const el = Math.sin(ang) * .92 + .14;          /* elevation, ~-0.78..1.06 */
   const az = ang * .5 + .8;
@@ -54,12 +60,13 @@ function updateSky(dt) {
   sun.color.setHSL(.095 - dusk * .04, .38 + dusk * .40, .84 - dusk * .18);
   /* every ambient term collapses at night so the ground cannot stay lit
      under a dark sky the way it used to */
-  hemi.intensity = .045 + light * (.42 - cloudy * .12) + cloudy * light * .16;
-  amb.intensity = .025 + light * .085;
-  fill.intensity = .035 + light * .17;
-  moon.intensity = nite * .30 * (1 - cloudy * .7);
+  /* a real moonlit floor: night should read blue and legible, not black */
+  hemi.intensity = .17 + light * (.40 - cloudy * .12) + cloudy * light * .16;
+  amb.intensity = .085 + light * .07;
+  fill.intensity = .075 + light * .15;
+  moon.intensity = nite * .62 * (1 - cloudy * .6);
   lampA.intensity = lampB.intensity = nite * 2.6 * houseLit();
-  renderer.toneMappingExposure = .72 + light * .40 - cloudy * .07;
+  renderer.toneMappingExposure = .90 + light * .26 - cloudy * .06;
 
   /* stars & glare */
   stars.material.opacity = nite * (1 - cloudy) * .9;

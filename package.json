@@ -6,7 +6,10 @@
     "start": "http-server . -p 8080 -c-1 -o",
     "dev": "http-server . -p 8080 -c-1",
     "check": "node tools/run.js",
-    "audit": "node tools/audit.js"
+    "audit": "node tools/audit.js",
+    "controls": "node tools/ui.js",
+    "diag": "node tools/diag.js",
+    "test": "npm run check && npm run audit && npm run diag && npm run controls"
   },
   "license": "MIT",
   "devDependencies": {

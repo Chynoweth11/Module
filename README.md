@@ -39,10 +39,13 @@ js/80-main.js       sun/sky cycle, frame loop, adaptive quality, boot
 
 ## Verifying changes
 ```
+npm test          # all four of the below
 npm run check     # execute every script against a THREE/DOM mock and sweep
                   # the timeline forward and back, all modes, all layers
 npm run audit     # sequence dependencies, duplicates, floating objects,
                   # envelope cladding coverage, roof coverage
+npm run diag      # tree assembly, dig depth, grade drift, night fraction
+npm run controls  # fires real click handlers and asserts state changed
 ```
 The failure modes in a project like this are almost all logic rather than
 syntax — a panel dropped around an opening, a roof plane that was never

@@ -31,7 +31,7 @@ const GD = {
   stone:   { c: 0x7f766a, r: .95, xr: .09 },
   stucco:  { c: 0xd9d3c6, r: .93, xr: .09 },
   cedar:   { c: 0x8d5f38, r: .8, xr: .12 },
-  bronze:  { c: 0x6e5637, r: .38, m: .88 },
+  bronze:  { c: 0x5f5340, r: .55, m: .34 },
   glass:   { c: 0x9ec3d6, r: .06, m: .1, o: .3, xr: .07 },
   oak:     { c: 0xa87a3e, r: .68 },
   marble:  { c: 0xd9d6d0, r: .28, m: .04 },
@@ -349,6 +349,8 @@ const geoTrunk = (function () {
   return g;
 })();
 G.trunk.geo = geoTrunk;
+GD.tpo = { c: 0xd2d5d4, r: .74, xr: .06 };
+G.tpo = { key: 'tpo', list: [], def: GD.tpo, geo: geoBox };
 G.conifer.geo = geoConifer;
 G.leafy.geo = geoBroadleaf;
 G.shrub = { key: 'shrub', list: [], def: GD.leafy, geo: geoShrub };

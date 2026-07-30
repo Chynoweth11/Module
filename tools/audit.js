@@ -68,12 +68,16 @@ const audit = `
       else seen[key] = 1;
     }
   }
-  // site-level things that should be sitting on the ground
+  // permanent site objects are placed against the FINAL grade, so that is
+  // what they have to be measured against
+  T = 1; terrainUpdate();
   ['mulch@landscape', 'boulder', 'trunk', 'cone', 'gravel'].forEach(function (k3) {
     if (!G[k3]) return;
     var L3 = G[k3].list, bad = 0;
     for (var j = 0; j < L3.length; j++) {
-      var o = L3[j], gy = groundY(o.p[0], o.p[2]);
+      var o = L3[j];
+      if (o.x0 !== undefined && o.x0 <= 1) continue;   // temporary, removed before handover
+      var gy = finalY(o.p[0], o.p[2]);
       var bottom = o.p[1] - o.s[1] / 2;
       if (bottom > gy + 2.5) bad++;
     }

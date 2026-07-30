@@ -105,7 +105,9 @@
     const ang = Math.atan2(t[2] - t[0], t[3] - t[1]);
     const w = bed(i);
     P('gravel', {
-      p: [(t[0] + t[2]) / 2, groundY((t[0] + t[2]) / 2, (t[1] + t[3]) / 2) + .3, (t[1] + t[3]) / 2],
+      /* against the final grade, not the pre-grading surface — otherwise the
+         bedding for the long leach-field run ends up sitting on the lawn */
+      p: [(t[0] + t[2]) / 2, finalY((t[0] + t[2]) / 2, (t[1] + t[3]) / 2) - 2.6, (t[1] + t[3]) / 2],
       s: [t[4] * 1.5, .55, L], r: [0, ang, 0],
       t0: w[0], t1: w[1], l: 'excavation', a: 'ext', ax: 'z', sg: -1,
       m: { n: 'Trench bedding', s: 'excavation', d: 'Sand bedding shaped to support the pipe barrel continuously. Inspected before pipe is laid.' }
@@ -533,7 +535,7 @@
       p: [x + w / 2, TOWER.deck - .55, z + dp / 2], s: [w * .98, .9, dp * .98], t0: t[0], t1: t[1], l: 'framing', a: 'drop', h: 12,
       m: { n: 'Flat roof framing', s: 'framing', d: 'Tapered joists sloped 1/4" per foot to interior drains, with blocking at the parapet.' }
     });
-    P('memb', {
+    P('tpo', {
       p: [x + w / 2, TOWER.deck + .06, z + dp / 2], s: [w * 1.05, .12, dp * 1.05],
       t0: RA + .002 + (n % 24) * .0004, t1: RA + .014 + (n % 24) * .0004, l: 'roofing', a: 'grow',
       m: { n: 'Single‑ply membrane', s: 'roofing', d: 'Fully adhered 60 mil TPO with heat‑welded seams and a 24" walk pad to the mechanical units.' }
@@ -549,11 +551,18 @@
       t0: DK[1] - .004, t1: DK[1], l: 'framing', a: 'rise',
       m: { n: 'Parapet framing', s: 'framing', d: 'Framed parapet with a sloped cap and continuous through‑wall flashing behind the coping.' }
     });
+    /* parapet gets clad on both faces before the coping goes on */
+    [-1, 1].forEach(sg => P('stucco', {
+      p: [(e[0] + e[2]) / 2 + (ax ? 0 : sg * .42), TOWER.deck + .95, (e[1] + e[3]) / 2 + (ax ? sg * .42 : 0)],
+      s: ax ? [Math.abs(e[2] - e[0]) + .62, 2.1, .2] : [.2, 2.1, Math.abs(e[3] - e[1]) + .62],
+      t0: PH.exteriorfin.t0 + .02 + i * .002, t1: PH.exteriorfin.t0 + .05 + i * .002, l: 'enclosure', a: 'grow',
+      m: { n: 'Parapet cladding', s: 'enclosure', d: 'Finish carried up and over the parapet on both faces, with through-wall flashing behind the coping so nothing can drive water into the top of the wall.' }
+    }));
     P('bronze', {
-      p: [(e[0] + e[2]) / 2, TOWER.deck + 1.95, (e[1] + e[3]) / 2],
-      s: ax ? [Math.abs(e[2] - e[0]) + .9, .2, .95] : [.95, .2, Math.abs(e[3] - e[1]) + .9],
-      t0: PH.roofing.t1 - .008, t1: PH.roofing.t1, l: 'roofing', a: 'grow',
-      m: { n: 'Bronze coping', s: 'roofing', d: 'Formed metal coping with cleats and standing seams at every joint.' }
+      p: [(e[0] + e[2]) / 2, TOWER.deck + 2.05, (e[1] + e[3]) / 2],
+      s: ax ? [Math.abs(e[2] - e[0]) + 1.1, .22, 1.15] : [1.15, .22, Math.abs(e[3] - e[1]) + 1.1],
+      t0: PH.exteriorfin.t0 + .05, t1: PH.exteriorfin.t0 + .07, l: 'roofing', a: 'grow',
+      m: { n: 'Bronze coping', s: 'roofing', d: 'Formed metal coping over a continuous cleat, with standing seams at every joint and end dams at the corners.' }
     });
   });
 
@@ -1107,16 +1116,16 @@
     const n = Math.max(2, Math.round(L / 5.2)), ang = Math.atan2(b[0] - a[0], b[1] - a[1]);
     for (let k = 0; k < n; k++) {
       const t = (k + .5) / n;
-      drive.push([lerp(a[0], b[0], t), lerp(a[1], b[1], t), ang, 17, L / n * 1.06]);
+      drive.push([lerp(a[0], b[0], t), lerp(a[1], b[1], t), ang, 17, L / n * 1.34]);
     }
   }
   /* garage apron */
-  for (let i = 0; i < 6; i++) for (let k = 0; k < 4; k++) drive.push([31 + i * 5.2, -30 + k * 4.6, 0, 5.3, 4.7]);
+  for (let i = 0; i < 6; i++) for (let k = 0; k < 4; k++) drive.push([31 + i * 5.2, -30 + k * 4.6, 0, 5.5, 4.9]);
   const dq = seq(A + S * .02, A + S * .32, drive.length, .1);
   drive.forEach((pv, i) => {
     const t = dq(i);
     P('paver', {
-      p: [pv[0], groundY(pv[0], pv[1]) + .22, pv[1]], s: [pv[3], .45, pv[4]], r: [0, pv[2], 0],
+      p: [pv[0], finalY(pv[0], pv[1]) + .12, pv[1]], s: [pv[3], .95, pv[4]], r: [0, pv[2], 0],
       t0: t[0], t1: t[1], l: 'exterior', a: 'grow', c: [.50 + R() * .07, .49 + R() * .07, .47 + R() * .06],
       m: { n: 'Granite paver driveway', s: 'exterior', d: 'Sawn granite setts on a bedding course over 8" of compacted base, with permeable joint sand and a trench drain at the garage apron.' }
     });
@@ -1131,7 +1140,7 @@
   terr.forEach((pv, i) => {
     const t = tq(i);
     P('paver', {
-      p: [pv[0], groundY(pv[0], pv[1]) + .26, pv[1]], s: [4.3, .5, 4.3], t0: t[0], t1: t[1], l: 'exterior', a: 'drop', h: 4,
+      p: [pv[0], finalY(pv[0], pv[1]) + .18, pv[1]], s: [4.42, .82, 4.42], t0: t[0], t1: t[1], l: 'exterior', a: 'drop', h: 4,
       c: [.57 + R() * .06, .56 + R() * .06, .54 + R() * .05],
       m: { n: pv[2] === 'walk' ? 'Entry walk' : 'Stone terrace', s: 'exterior', d: 'Thermal-finish stone on pedestals over a drainage layer, set dead level with the interior floor so the threshold disappears.' }
     });
@@ -1192,7 +1201,7 @@
     const x = -52 + i * 4.6, z = 26 + i * 1.4;
     const t = seq(A + S * .22, A + S * .46, 14, .2)(i);
     P('stone', {
-      p: [x, groundY(x, z) + 1.5, z], s: [4.8, 3.6, 2.2], r: [0, .29, 0], t0: t[0], t1: t[1], l: 'exterior', a: 'rise',
+      p: [x, finalY(x, z) + 1.5, z], s: [5.5, 3.6, 2.4], r: [0, .29, 0], t0: t[0], t1: t[1], l: 'exterior', a: 'rise',
       c: [.40 + R() * .13, .38 + R() * .11, .34 + R() * .09],
       m: { n: 'Site retaining wall', s: 'exterior', d: 'Battered dry-stack wall with a drainage chimney and perforated pipe behind it, daylighted at the low end.' }
     });
@@ -1211,7 +1220,7 @@
   [[-15, -30], [-15, -38], [7, -30], [7, -38], [-8, 41], [20, 41], [20, 30]].forEach(q => lampPts.push(q));
   lampPts.forEach((q, i) => {
     const t = seq(A + S * .82, B, lampPts.length, .18)(i);
-    const gy = groundY(q[0], q[1]);
+    const gy = finalY(q[0], q[1]);
     P('bronze', {
       p: [q[0], gy + 1.35, q[1]], s: [.34, 2.7, .34], t0: t[0], t1: t[1], l: 'landscape', a: 'rise',
       m: { n: 'Path bollard', s: 'landscape', d: 'Low-voltage bollard on an astronomic timer, fully shielded so the light lands on the path and not in anyone\'s eyes.' }
@@ -1232,7 +1241,7 @@
   }
   const bq = seq(A + S * .52, A + S * .88, Math.max(1, beds.length), .12);
   beds.forEach((b, i) => {
-    const t = bq(i), gy = groundY(b[0], b[1]);
+    const t = bq(i), gy = finalY(b[0], b[1]);
     P('mulch', {
       p: [b[0], gy + .2, b[1]], s: [8.5, .4, 6.5], r: [0, R() * .6, 0], t0: t[0], t1: t[1], l: 'landscape', a: 'grow',
       m: { n: 'Planting bed', s: 'landscape', d: 'Imported topsoil and compost, drip irrigation on its own zone, then bark mulch held back off the trunk flare.' }
@@ -1251,7 +1260,7 @@
     const x = 12 + Math.cos(a) * r, z = 6 + Math.sin(a) * r * .85;
     if (!siteClear(x, z, 8)) continue;
     const h = 17 + R() * 13, t = seq(A + S * .58, B, 18, .18)(placed);
-    const gy = groundY(x, z);
+    const gy = finalY(x, z);
     P('trunk', {
       p: [x, gy + h * .17, z], s: [1.0, h * .36, 1.0], t0: t[0], t1: t[1], l: 'landscape', a: 'rise',
       m: { n: 'Specimen conifer', s: 'landscape', d: 'Craned in with a root ball, guyed for one season and watered on a temporary bag system until it establishes.' }
@@ -1272,7 +1281,7 @@
     const t = seq(A + S * .48, A + S * .78, 11, .25)(bplaced);
     const w = 3.4 + R() * 3.6;
     P('boulder', {
-      p: [x, groundY(x, z) + w * .26, z], s: [w, w * (.62 + R() * .3), w * (.8 + R() * .4)],
+      p: [x, finalY(x, z) + w * .26, z], s: [w, w * (.62 + R() * .3), w * (.8 + R() * .4)],
       r: [R() * .4, R() * TAU, R() * .3], t0: t[0], t1: t[1], l: 'landscape', a: 'drop', h: 8,
       c: [.34 + R() * .12, .33 + R() * .1, .31 + R() * .09],
       m: { n: 'Placed boulder', s: 'landscape', d: 'Local granite set with a third of its mass buried so it reads as though it was always there.' }
@@ -1299,12 +1308,15 @@
     const mt = inPad
       ? { n: 'Tree to be removed', s: 'site', d: 'Marked on the tree survey for removal. Stumps are ground out and the chips are stockpiled for the planting beds.' }
       : { n: 'Protected tree', s: 'site', d: 'Inside the tree protection fence. Nothing is stored, parked or graded inside the drip line.' };
-    const gy = groundY(x, z);
+    const gy = finalY(x, z);
+    /* broadleaf crowns sit lower on a longer trunk — the old numbers left
+       up to a 3-unit gap between the two, so canopies floated free */
+    const trH = conif ? h * .34 : h * .46;
     P('trunk', Object.assign({
-      p: [x, gy + h * .16, z], s: [.9 + rr() * .6, h * .34, .9 + rr() * .6], t0: -.002, t1: -.001, l: 'site', a: 'grow', m: mt
+      p: [x, gy + trH * .5, z], s: [.95 + rr() * .55, trH, .95 + rr() * .55], t0: -.002, t1: -.001, l: 'site', a: 'grow', m: mt
     }, rem));
     P(conif ? 'conifer' : 'leafy', Object.assign({
-      p: [x, gy + h * (conif ? .58 : .64), z], s: conif ? [h * .44, h * .88, h * .44] : [h * .62, h * .58, h * .62],
+      p: [x, gy + h * (conif ? .58 : .60), z], s: conif ? [h * .44, h * .88, h * .44] : [h * .64, h * .60, h * .64],
       r: [0, rr() * TAU, 0], t0: -.002, t1: -.001, l: 'site', a: 'grow',
       c: conif ? [.10 + rr() * .06, .23 + rr() * .1, .14 + rr() * .05] : [.17 + rr() * .09, .32 + rr() * .13, .13 + rr() * .06],
       m: mt
@@ -1333,11 +1345,12 @@ const MAT = {
   slate:   { tex: 'slate', ts: .55, sh: 1, r: .72, env: .8, xr: .07 },
   seam:    { tex: 'metal', ts: .4, sh: 1, r: .38, m: .68, env: .9, xr: .07, nv: 1 },
   memb:    { r: .88, xr: .06, nv: 1 },
+  tpo:     { tex: 'board', ts: .22, sh: 1, r: .74, xr: .06, nv: 1 },
   wrap:    { tex: 'board', ts: .35, r: .85, xr: .07, nv: 1 },
   stone:   { tex: 'stone', ts: .16, sh: 1, r: .94, env: .5, xr: .10 },
   stucco:  { tex: 'stucco', ts: .16, sh: 1, r: .92, xr: .10, nv: 1 },
   cedar:   { tex: 'wood', ts: .38, sh: 1, r: .76, xr: .14 },
-  bronze:  { tex: 'metal', ts: .9, sh: 1, r: .46, m: .70, env: .75, nv: 1 },
+  bronze:  { tex: 'metal', ts: .9, sh: 1, r: .58, m: .34, env: .34, nv: 1 },
   glass:   { sh: 0, r: .035, m: .22, o: .38, env: 3.2, xr: .12, nv: 1 },
   oak:     { tex: 'oak', ts: .3, sh: 1, r: .55, env: .7 },
   marble:  { tex: 'concrete', ts: .12, sh: 1, r: .22, env: 1.1, nv: 1 },

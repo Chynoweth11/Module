@@ -134,12 +134,20 @@ function mkExcavator() {
   house.add(box(2.6, 3.4, 6.2, 0x2b2f34, -4.7, 1.5, 0, .8));
   house.add(beacon(1.2, 4.9, -.7));
   const boom = new TH.Group(); boom.position.set(3.6, 2.2, 1.5); house.add(boom);
-  boom.add(box(12, 1.5, 1.3, YEL, 6, 0, 0, .45, .2));
-  boom.add(cyl(.42, .42, 1.6, 0x9aa1a8, .3, .8)).rotation.x = Math.PI / 2;
+  /* boom: tapered box plus a hydraulic ram, chunky enough to read as steel */
+  boom.add(box(12, 1.9, 1.7, YEL, 6, 0, 0, .45, .2));
+  boom.add(box(9, 1.2, 1.15, YEL, 8.5, .9, 0, .45, .2));
+  const bp = cyl(.42, .42, 5.2, 0xb4bac0, .3, .7);
+  bp.rotation.z = Math.PI / 2 - .5; bp.position.set(3.4, 1.5, 0);
+  boom.add(bp);
   const stick = new TH.Group(); stick.position.set(12, 0, 0); boom.add(stick);
-  stick.add(box(8, 1.1, 1.0, YEL, 4, 0, 0, .45, .2));
+  stick.add(box(8, 1.5, 1.35, YEL, 4, 0, 0, .45, .2));
+  const sp = cyl(.34, .34, 4.0, 0xb4bac0, .3, .7);
+  sp.rotation.z = Math.PI / 2 - .35; sp.position.set(2.2, 1.1, 0);
+  stick.add(sp);
   const bk = new TH.Group(); bk.position.set(8, 0, 0); stick.add(bk);
   bk.add(box(2.6, 2.6, 3.2, 0x36393d, 1, -.9, 0, .55, .5));
+  bk.add(box(1.0, .34, 3.0, 0x9aa1a8, .1, .5, 0, .4, .6));
   for (let i = 0; i < 5; i++) bk.add(box(.9, .5, .32, 0x9a9da0, 2.3, -1.9, -1.3 + i * .65, .42, .65));
   g.userData = { house, boom, stick, bk, swing: 22 };
   return g;
@@ -287,11 +295,13 @@ function equip(obj, cfg) { obj.visible = false; scene.add(obj); EQUIP.push(Objec
       const x = lerp(a[0], b[0], smooth(f)), z = lerp(a[1], b[1], smooth(f));
       o.position.set(x, groundY(x, z), z);
       o.rotation.y = Math.atan2(b[0] - a[0], b[1] - a[1]);
-      const c = clock * .7;
-      o.userData.house.rotation.y = Math.sin(c * .8) * .95;
-      o.userData.boom.rotation.z = -.28 + Math.sin(c * 1.7) * .26;
-      o.userData.stick.rotation.z = -.9 + Math.sin(c * 1.7 + 1.1) * .48;
-      o.userData.bk.rotation.z = .6 + Math.sin(c * 1.7 + 2.2) * .7;
+      /* a real dig cycle: reach out, curl, lift, swing, dump */
+      const c = clock * .5;
+      const cyc = (c % TAU) / TAU;
+      o.userData.house.rotation.y = Math.sin(c * .5) * .85;
+      o.userData.boom.rotation.z = -.22 + Math.sin(c) * .30;
+      o.userData.stick.rotation.z = -1.05 + Math.sin(c + 1.15) * .42;
+      o.userData.bk.rotation.z = .55 + Math.sin(c + 2.3) * .62;
     }
   });
   const dz = mkDozer();
@@ -694,10 +704,11 @@ function updateUO() {
     }
     g.position.set(x, 0, z); g.rotation.y = R() * .3;
     g.userData.meta = { n: label, s: 'site', d: note };
+    const done = PH[phaseKey] ? PH[phaseKey].t1 : OUT;
     addU(g, {
-      t0: t0, t1: t0 + .006, l: 'temps',
-      tick: (o, u) => {
-        g.position.y = groundY(x, z) + (1 - easeOut(u)) * -6;
+      t0: t0, t1: t0 + .006, x0: done, x1: done + .008, l: 'temps',
+      tick: (o, u, v) => {
+        g.position.y = groundY(x, z) + (1 - easeOut(u)) * -6 + v * 4;
         const used = PH[phaseKey] ? sat((T - PH[phaseKey].t0) / (PH[phaseKey].t1 - PH[phaseKey].t0)) : 0;
         parts.forEach((p, i) => p.visible = (i / rows) < 1 - used * .96);
       }

@@ -167,7 +167,7 @@ function padMask(x, z) {
 }
 function digMask(x, z) {
   const dx = Math.max(0, Math.abs(x - 13) - 47), dz = Math.max(0, Math.abs(z - 6) - 32);
-  return 1 - smooth(Math.hypot(dx, dz) / 7);
+  return 1 - smooth(Math.hypot(dx, dz) / 5);
 }
 const TRENCH = [
   [-112, 14, -46, 14, 2.6], [-46, 14, -46, -6, 2.6], [-46, -6, -30, -6, 2.6],
@@ -228,6 +228,17 @@ function groundY(x, z) {
   h -= trenchMask(x, z) * 3.4 * _tr * (1 - _fill);
   h += spoilAt(x, z) * _spoil;
   return h;
+}
+
+/* Height at the FINAL grade. Landscape, hardscape and trees are placed
+   once at load, but groundY() at load time returns the *pre-grading*
+   height — so once the pad was cut everything that had been placed on it
+   was left hanging in the air or buried. Anything permanent is positioned
+   against this instead. */
+function finalY(x, z) {
+  const base = natural(x, z);
+  const target = -0.35 - Math.max(0, x - 40) * 0.012;
+  return base + (target - base) * padMask(x, z) - digMask(x, z) * 4.6 * .035;
 }
 
 /* ── the terrain mesh evaluates the same formula, but every term that

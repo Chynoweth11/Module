@@ -9,7 +9,8 @@ const UI = {
   set: $('ctSet'), num: $('ctNum'), phase: $('ctPhase'), date: $('ctDate'),
   pct: $('ctPct'), tag: $('ctTag'), tagN: $('ctTagN'), tagD: $('ctTagD'),
   tagX: $('ctTagX'), boot: $('ctBoot'), bootMsg: $('ctBootMsg'), bootBar: $('ctBootBar'),
-  mile: $('ctMile'), mileTxt: $('ctMileTxt'), spd: $('ctSpd'), cut: $('ctCut')
+  mile: $('ctMile'), mileTxt: $('ctMileTxt'), spd: $('ctSpd'), cut: $('ctCut'),
+  tips: $('ctTips'), reset: $('ctReset')
 };
 
 /* phase tint bands + milestone ticks on the rail */
@@ -72,15 +73,23 @@ document.addEventListener('pointerdown', e => {
   if (UI.set.classList.contains('open') && !UI.set.contains(e.target) && e.target !== UI.gear && !UI.gear.contains(e.target))
     UI.set.classList.remove('open');
 });
+/* these were querying for <b> and reading data-v, while the markup uses
+   <button> with data-s / data-c — so speed and cutaway did nothing at all */
 UI.spd.addEventListener('click', e => {
-  const b = e.target.closest('b'); if (!b) return;
+  const b = e.target.closest('button'); if (!b || !UI.spd.contains(b)) return;
+  const v = parseFloat(b.dataset.s);
+  if (!isFinite(v)) return;
   [...UI.spd.children].forEach(c => c.classList.toggle('on', c === b));
-  speed = parseFloat(b.dataset.v);
+  speed = v;
 });
 UI.cut.addEventListener('click', e => {
-  const b = e.target.closest('b'); if (!b) return;
+  const b = e.target.closest('button'); if (!b || !UI.cut.contains(b)) return;
+  const v = b.dataset.c;
+  if (!v) return;
   [...UI.cut.children].forEach(c => c.classList.toggle('on', c === b));
-  cutMode = b.dataset.v;
+  cutMode = v;
+  reveal = computeReveal();
+  applyReveal();
 });
 document.querySelectorAll('#ctSet .sw').forEach(sw => {
   sw.addEventListener('click', () => {
@@ -164,3 +173,28 @@ function checkMilestones() {
   if (idx > lastMile) { showMile(MILESTONES[idx].n); lastMile = idx; }
   else if (idx < lastMile) lastMile = idx;
 }
+
+/* ── controls hint: show it once, then get out of the way ── */
+(function tips() {
+  if (!UI.tips) return;
+  let shown = false, hideT = 0;
+  function show() {
+    if (shown) return;
+    shown = true;
+    UI.tips.classList.add('on');
+    hideT = setTimeout(() => UI.tips.classList.remove('on'), 6500);
+  }
+  function dismiss() {
+    clearTimeout(hideT);
+    UI.tips.classList.remove('on');
+  }
+  setTimeout(show, 1400);
+  canvas.addEventListener('pointerdown', dismiss, { once: true });
+  UI.track.addEventListener('pointerdown', dismiss, { once: true });
+})();
+
+/* ── reset camera: put the shot back where the film intended ── */
+if (UI.reset) UI.reset.addEventListener('click', () => {
+  CAM.azOff = 0; CAM.polOff = 0; CAM.distMul = 1; CAM.idle = 99;
+  UI.set.classList.remove('open');
+});
