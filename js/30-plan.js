@@ -35,12 +35,10 @@ const GD = {
   glass:   { c: 0x9ec3d6, r: .06, m: .1, o: .3, xr: .07 },
   oak:     { c: 0xa87a3e, r: .68 },
   marble:  { c: 0xd9d6d0, r: .28, m: .04 },
-  tileI:   { c: 0xa8a196, r: .5 },
   fixture: { c: 0xeef1f3, r: .22 },
   appl:    { c: 0x8b939a, r: .3, m: .82 },
   fabric:  { c: 0x6b6a63, r: 1 },
   paver:   { c: 0x8c8983, r: .92 },
-  asph:    { c: 0x3c3e40, r: .96 },
   mulch:   { c: 0x4a3729, r: 1 },
   trunk:   { c: 0x4d3c2d, r: .95, g: 'cyl' },
   conifer: { c: 0x2f5235, r: .96, g: 'cone' },
@@ -48,9 +46,7 @@ const GD = {
   water:   { c: 0x2b7f9e, r: .05, m: .25, o: .78 },
   stake:   { c: 0xe0c878, r: .9 },
   strline: { c: 0xe05a4a, r: .8 },
-  glow:    { c: 0xffd9a0, r: .4, e: 0xffb45a, ei: 2.2 },
-  temp:    { c: 0xc3c9cd, r: .8 },
-  tarmac:  { c: 0x555b60, r: .95 }
+  glow:    { c: 0xffd9a0, r: .4, e: 0xffb45a, ei: 2.2 }
 };
 const G = {};
 const geoBox = new TH.BoxGeometry(1, 1, 1);

@@ -84,10 +84,14 @@ function bakePainted(name, c, n, st) {
   TEX[name] = { map: mkTexture(c), nrm: normalFrom(H, n, st) };
 }
 
+/* Texture budget scales with the device. The big maps are worth it on a
+   desktop GPU and are dead weight on a phone, where they cost both boot
+   time and memory before a single frame is drawn. */
+const TXR = n => (typeof SMALL !== 'undefined' && SMALL) ? Math.max(64, n >> 1) : n;
 function buildTextures() {
   /* concrete — blotchy grey with aggregate speckle */
-  const cf = noiseField(128, 3, 3, 11), cs = noiseField(128, 22, 2, 12);
-  surface('concrete', 128, (D, H, n) => {
+  const cf = noiseField(TXR(128), 3, 3, 11), cs = noiseField(TXR(128), 22, 2, 12);
+  surface('concrete', TXR(128), (D, H, n) => {
     for (let i = 0; i < n * n; i++) {
       const v = .82 + cf[i] * .30 - .12, sp = cs[i];
       const k = v + (sp > .74 ? .12 : sp < .22 ? -.09 : 0);
@@ -96,8 +100,8 @@ function buildTextures() {
     }
   }, 1.7);
   /* framing lumber — grain running along the length */
-  const wg = noiseField(128, 4, 3, 21), wf = noiseField(128, 14, 2, 22);
-  surface('wood', 128, (D, H, n) => {
+  const wg = noiseField(TXR(128), 4, 3, 21), wf = noiseField(TXR(128), 14, 2, 22);
+  surface('wood', TXR(128), (D, H, n) => {
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
       const i = y * n + x;
       const grain = Math.sin((x + wg[i] * 17) * 1.04) * .5 + .5;
@@ -107,8 +111,8 @@ function buildTextures() {
     }
   }, 1.3);
   /* white oak — tighter, warmer, satin */
-  const og = noiseField(128, 3, 3, 31), of = noiseField(128, 18, 2, 32);
-  surface('oak', 128, (D, H, n) => {
+  const og = noiseField(TXR(128), 3, 3, 31), of = noiseField(TXR(128), 18, 2, 32);
+  surface('oak', TXR(128), (D, H, n) => {
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
       const i = y * n + x;
       const grain = Math.pow(Math.sin((x + og[i] * 13) * 1.56) * .5 + .5, 1.6);
@@ -163,8 +167,8 @@ function buildTextures() {
     bakePainted('stone', c, n, 4.2);
   })();
   /* stucco — fine sand float finish */
-  const sf = noiseField(256, 58, 2, 61), sb = noiseField(256, 7, 3, 62), sw = noiseField(256, 19, 2, 63);
-  surface('stucco', 256, (D, H, n) => {
+  const sf = noiseField(TXR(256), 58, 2, 61), sb = noiseField(TXR(256), 7, 3, 62), sw = noiseField(TXR(256), 19, 2, 63);
+  surface('stucco', TXR(256), (D, H, n) => {
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
       const i = y * n + x;
       /* sand grain + a slow trowel swirl so raking light has something to find */
@@ -175,8 +179,8 @@ function buildTextures() {
     }
   }, 2.4);
   /* slate — mottled, faintly cleft */
-  const qf = noiseField(256, 6, 3, 71), qs = noiseField(256, 34, 2, 72), qc = noiseField(256, 3, 2, 73);
-  surface('slate', 256, (D, H, n) => {
+  const qf = noiseField(TXR(256), 6, 3, 71), qs = noiseField(TXR(256), 34, 2, 72), qc = noiseField(TXR(256), 3, 2, 73);
+  surface('slate', TXR(256), (D, H, n) => {
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
       const i = y * n + x;
       /* cleaving planes run with the bed, so band the height along y */
@@ -189,8 +193,8 @@ function buildTextures() {
     }
   }, 2.8);
   /* brushed metal */
-  const mf = noiseField(128, 64, 2, 81);
-  surface('metal', 128, (D, H, n) => {
+  const mf = noiseField(TXR(128), 64, 2, 81);
+  surface('metal', TXR(128), (D, H, n) => {
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
       const i = y * n + x;
       const k = .86 + (mf[i] - .5) * .16;
@@ -199,8 +203,8 @@ function buildTextures() {
     }
   }, .8);
   /* painted board / drywall — almost flat, just enough to catch light */
-  const bf = noiseField(128, 24, 2, 91);
-  surface('board', 128, (D, H, n) => {
+  const bf = noiseField(TXR(128), 24, 2, 91);
+  surface('board', TXR(128), (D, H, n) => {
     for (let i = 0; i < n * n; i++) {
       const k = .95 + (bf[i] - .5) * .05; H[i] = bf[i];
       px(D, i, k, k * .995, k * .98);
@@ -220,8 +224,8 @@ function buildTextures() {
     bakePainted('gravel', c, n, 3.4);
   })();
   /* ground detail — near-white so terrain vertex colours still read */
-  const gf = noiseField(512, 6, 4, 111), gd = noiseField(512, 74, 2, 112), gc = noiseField(512, 24, 3, 113);
-  surface('ground', 512, (D, H, n) => {
+  const gf = noiseField(TXR(512), 6, 4, 111), gd = noiseField(TXR(512), 74, 2, 112), gc = noiseField(TXR(512), 24, 3, 113);
+  surface('ground', TXR(512), (D, H, n) => {
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
       const i = y * n + x;
       /* fine blade-scale detail over a slow clumping term */
@@ -232,8 +236,8 @@ function buildTextures() {
     }
   }, 3.4);
   /* foliage — needle / leaf clumping so canopies are not flat colour */
-  const lf = noiseField(256, 46, 3, 131), lc = noiseField(256, 9, 3, 132);
-  surface('foliage', 256, (D, H, n) => {
+  const lf = noiseField(TXR(256), 46, 3, 131), lc = noiseField(TXR(256), 9, 3, 132);
+  surface('foliage', TXR(256), (D, H, n) => {
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
       const i = y * n + x;
       const clump = lc[i];
@@ -245,8 +249,8 @@ function buildTextures() {
     }
   }, 2.2);
   /* insulation batt — fibrous */
-  const ff = noiseField(128, 32, 2, 121);
-  surface('fiber', 128, (D, H, n) => {
+  const ff = noiseField(TXR(128), 32, 2, 121);
+  surface('fiber', TXR(128), (D, H, n) => {
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
       const i = y * n + x;
       const k = .84 + (ff[i] - .5) * .28 + Math.sin(y * .9) * .04;

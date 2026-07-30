@@ -42,6 +42,8 @@ js/80-main.js       sun/sky cycle, frame loop, adaptive quality, boot
 npm test          # all four of the below
 npm run check     # execute every script against a THREE/DOM mock and sweep
                   # the timeline forward and back, all modes, all layers
+npm run lint      # layers, time windows, phase continuity, captions, NaN
+                  # sweep, shadow budget, instance/draw-call distribution
 npm run audit     # sequence dependencies, duplicates, floating objects,
                   # envelope cladding coverage, roof coverage
 npm run diag      # tree assembly, dig depth, grade drift, night fraction

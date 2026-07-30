@@ -61,8 +61,10 @@ function updateCamera(dt) {
   const tz = lerp(p.cam.tg[2], nx.cam.tg[2], k);
 
   CAM.idle += dt;
-  if (CAM.idle > 3.2) {
-    const e = 1 - Math.pow(.28, dt);
+  /* six seconds, not three: recovering while someone is still looking at
+     something reads as the camera fighting them */
+  if (CAM.idle > 6) {
+    const e = 1 - Math.pow(.42, dt);
     CAM.azOff = lerp(CAM.azOff, 0, e); CAM.polOff = lerp(CAM.polOff, 0, e);
     CAM.distMul = lerp(CAM.distMul, 1, e);
   }
@@ -78,7 +80,10 @@ function updateCamera(dt) {
     tz + Math.cos(clock * .13) * .5 * drift
   );
 
-  const s = 1 - Math.pow(.0022, dt);
+  /* while a finger or the wheel is actually driving, follow it almost
+     exactly; smooth hard only when the shot is being directed */
+  const dragging = ptrs.size > 0;
+  const s = 1 - Math.pow(dragging ? 1e-8 : .0022, dt);
   CAM.az = lerp(CAM.az, CAM.azG, s);
   CAM.pol = lerp(CAM.pol, CAM.polG, s);
   CAM.dist = lerp(CAM.dist, CAM.distG, s);

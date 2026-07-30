@@ -41,7 +41,7 @@ const doc = {
   getElementById: id => (registry[id] || (registry[id] = el(id))),
   createElement: t => { const e = el('_' + t); if (t === 'canvas') { e.width = 256; e.height = 256; } return e; },
   querySelectorAll: () => [], querySelector: () => null,
-  addEventListener(){}, body: el('body'), documentElement: el('html')
+  addEventListener(){}, body: el('body'), documentElement: el('html'), hidden: false
 };
 const sandbox = {
   THREE, document: doc, console,

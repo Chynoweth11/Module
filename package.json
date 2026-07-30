@@ -9,7 +9,8 @@
     "audit": "node tools/audit.js",
     "controls": "node tools/ui.js",
     "diag": "node tools/diag.js",
-    "test": "npm run check && npm run audit && npm run diag && npm run controls"
+    "test": "npm run check && npm run lint && npm run audit && npm run diag && npm run controls",
+    "lint": "node tools/lint.js"
   },
   "license": "MIT",
   "devDependencies": {

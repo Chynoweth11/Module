@@ -179,6 +179,21 @@ function adaptQuality(dt) {
   }
 }
 
+/* ── GL context loss: routine on mobile when the tab is backgrounded ── */
+let ctxLost = false;
+canvas.addEventListener('webglcontextlost', e => {
+  e.preventDefault();
+  ctxLost = true;
+  UI.hint && (UI.hint.textContent = '');
+}, false);
+canvas.addEventListener('webglcontextrestored', () => {
+  ctxLost = false;
+  buildTextures && null;                 /* textures live on the canvas, three re-uploads them */
+  scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
+  renderer.shadowMap.needsUpdate = true;
+  xformDirty = true;
+}, false);
+
 /* ── frame loop ── */
 let started = false, shadowTick = true;
 renderer.shadowMap.autoUpdate = false;
@@ -187,7 +202,7 @@ function frame(now) {
   const t = now * .001;
   const dt = Math.min(.05, t - (frame._t || t));
   frame._t = t;
-  if (!started) return;
+  if (!started || document.hidden) return;
   clock += dt;
 
   if (playing) {
@@ -198,16 +213,22 @@ function frame(now) {
   if (Math.abs(rv - reveal) > .003) { reveal = lerp(reveal, rv, 1 - Math.pow(.02, dt)); applyReveal(); }
   if (T !== lastT || xformDirty) { syncTime(); checkMilestones(); }
 
-  updateUO(); updateCrew(); updateEquip(); updateDust(dt);
-  updateSky(dt);
-  updateCamera(dt);
-  adaptQuality(dt);
+  try {
+    updateUO(); updateCrew(); updateEquip(); updateDust(dt);
+    updateSky(dt);
+    updateCamera(dt);
+    adaptQuality(dt);
+  } catch (e) {
+    /* keep presenting frames rather than freezing on a single bad one, but
+       say so once instead of flooding the console every 16 ms */
+    if (!frame._warned) { frame._warned = 1; console.warn('frame update failed, continuing:', e); }
+  }
   /* the shadow map is the single most expensive pass in the frame and the
      sun moves slowly — re-rendering it on alternate frames is free-looking
      and roughly halves its cost */
   shadowTick = !shadowTick;
   renderer.shadowMap.needsUpdate = shadowTick;
-  renderer.render(scene, camera);
+  if (!ctxLost) renderer.render(scene, camera);
 }
 requestAnimationFrame(frame);
 

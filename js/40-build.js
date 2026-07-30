@@ -38,7 +38,8 @@
     });
     P('stake', {
       p: [pt[0], 3.0, pt[1]], s: [1.9, .18, .18], r: [0, pt[2] % 2 ? Math.PI / 2 : 0, 0],
-      t0: s[0], t1: s[1], x0: X0, x1: X0 + .012, l: 'site', a: 'grow'
+      t0: s[0], t1: s[1], x0: X0, x1: X0 + .012, l: 'site', a: 'grow',
+      m: { n: 'Batter board', s: 'site', d: 'Horizontal board nailed between offset hubs. The building line is notched into it so the string can be pulled again after the excavator has been through.' }
     });
   });
   for (let i = 0; i < 4; i++) {
@@ -1331,9 +1332,9 @@ const MAT = {
   steel:   { tex: 'metal', ts: .5, sh: 1, r: .38, m: .9, env: 1.1 },
   osb:     { tex: 'osb', ts: .26, sh: 1, r: .93, xr: .10 },
   conc:    { tex: 'concrete', ts: .17, sh: 1, r: .92 },
-  form:    { tex: 'wood', ts: .2, sh: 1, r: .88 },
+  form:    { tex: 'wood', ts: .2, r: .88 },
   rebar:   { r: .58, m: .55, env: .9 },
-  gravel:  { tex: 'gravel', ts: .5, sh: 1, r: 1 },
+  gravel:  { tex: 'gravel', ts: .5, r: 1 },
   abs:     { r: .5 }, pvc: { r: .45 }, copper: { r: .3, m: .85, env: 1.2 },
   conduit: { r: .42, m: .6 },
   duct:    { tex: 'metal', ts: .7, r: .35, m: .8, env: 1.1 },
@@ -1341,11 +1342,11 @@ const MAT = {
   gear:    { tex: 'metal', ts: .8, sh: 1, r: .48, m: .65, env: 1 },
   insul:   { tex: 'fiber', ts: .8, r: 1, xr: .5 },
   foam:    { r: 1, xr: .5 },
-  gwb:     { tex: 'board', ts: .3, sh: 1, r: .94, xr: .08, nv: 1 },
+  gwb:     { tex: 'board', ts: .3, r: .94, xr: .08, nv: 1 },
   slate:   { tex: 'slate', ts: .55, sh: 1, r: .72, env: .8, xr: .07 },
   seam:    { tex: 'metal', ts: .4, sh: 1, r: .38, m: .68, env: .9, xr: .07, nv: 1 },
   memb:    { r: .88, xr: .06, nv: 1 },
-  tpo:     { tex: 'board', ts: .22, sh: 1, r: .74, xr: .06, nv: 1 },
+  tpo:     { tex: 'board', ts: .22, r: .74, xr: .06, nv: 1 },
   wrap:    { tex: 'board', ts: .35, r: .85, xr: .07, nv: 1 },
   stone:   { tex: 'stone', ts: .16, sh: 1, r: .94, env: .5, xr: .10 },
   stucco:  { tex: 'stucco', ts: .16, sh: 1, r: .92, xr: .10, nv: 1 },
@@ -1354,13 +1355,11 @@ const MAT = {
   glass:   { sh: 0, r: .035, m: .22, o: .38, env: 3.2, xr: .12, nv: 1 },
   oak:     { tex: 'oak', ts: .3, sh: 1, r: .55, env: .7 },
   marble:  { tex: 'concrete', ts: .12, sh: 1, r: .22, env: 1.1, nv: 1 },
-  tileI:   { tex: 'concrete', ts: .3, sh: 1, r: .42, env: .9 },
   fixture: { sh: 1, r: .18, env: 1.5 },
   appl:    { tex: 'metal', ts: .8, sh: 1, r: .3, m: .85, env: 1.3 },
   fabric:  { tex: 'fiber', ts: .5, sh: 1, r: 1 },
   paver:   { tex: 'concrete', ts: .25, sh: 1, r: .88 },
-  asph:    { tex: 'gravel', ts: .6, sh: 1, r: .96 },
-  mulch:   { tex: 'gravel', ts: .7, sh: 1, r: 1 },
+  mulch:   { tex: 'gravel', ts: .7, r: 1 },
   trunk:   { tex: 'wood', ts: .8, sh: 1, r: .95 },
   conifer: { tex: 'foliage', ts: .30, sh: 1, r: .94, env: .3 },
   leafy:   { tex: 'foliage', ts: .26, sh: 1, r: .94, env: .3 },
@@ -1369,13 +1368,11 @@ const MAT = {
   water:   { r: .03, m: .35, o: .8, env: 2.6, nv: 1 },
   stake:   { r: .85 }, strline: { r: .8 },
   glow:    { r: .35, e: 1, nv: 1 },
-  temp:    { tex: 'board', ts: .3, sh: 1, r: .78 },
-  tarmac:  { tex: 'gravel', ts: .5, sh: 1, r: .95 },
   safety:  { r: .93, sh: 1, nv: 1 },
   cone:    { r: .86, sh: 1, nv: 1 },
   tape:    { r: .82, nv: 1 },
   fence:   { tex: 'metal', ts: 1.5, r: .78, m: .3, sh: 1, o: .82, nv: 1 },
-  fpost:   { tex: 'metal', ts: .6, r: .6, m: .45, sh: 1, nv: 1 },
+  fpost:   { tex: 'metal', ts: .6, r: .6, m: .45, nv: 1 },
   triOsb:  { tex: 'osb', ts: .26, sh: 1, r: .93, xr: .10 },
   triFin:  { tex: 'stucco', ts: .30, sh: 1, r: .92, xr: .10 },
   triLum:  { tex: 'wood', ts: .34, sh: 1, r: .82 }
