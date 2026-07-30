@@ -46,6 +46,9 @@ npm run lint      # layers, time windows, phase continuity, captions, NaN
                   # sweep, shadow budget, instance/draw-call distribution
 npm run audit     # sequence dependencies, duplicates, floating objects,
                   # envelope cladding coverage, roof coverage
+npm run clash     # AABB clash detection between categories that must never
+                  # intersect, time-aware so a cleared tree is not reported
+                  # against a roof built four months later
 npm run diag      # tree assembly, dig depth, grade drift, night fraction
 npm run controls  # fires real click handlers and asserts state changed
 ```

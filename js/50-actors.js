@@ -54,7 +54,7 @@ const HIVIS = 0xd8e04a, HIVIS2 = 0xe8823a;
     g.add(ln, mm);
   }
   mass(-32, -24, 30, 24, FF, 13.7); mass(-6, 24, 18, 38, FF, 15.2);
-  mass(30, -24, 58, 0, FF, 12.2); mass(-32, -24, -8, 2, 13.7, 24.9);
+  mass(30, -24, 58, 0, FF, 12.2); mass(-32, -24, -8, 24, 13.7, 24.9);
   ROOFS.forEach(rf => {
     const pts = [[rf.x0, rf.zc - rf.half, rf.plate], [rf.x0, rf.zc, rf.plate + rf.rise], [rf.x0, rf.zc + rf.half, rf.plate],
     [rf.x1, rf.zc - rf.half, rf.plate], [rf.x1, rf.zc, rf.plate + rf.rise], [rf.x1, rf.zc + rf.half, rf.plate]];
@@ -553,6 +553,7 @@ const HARNESS_PH = { roofstruct: 1, roofing: 1, framing: 1 };
 const crewCount = ph => ph.crew.length ? Math.min(MAXCREW, ph.crew.reduce((a, c) => a + c[1], 0)) : 0;
 let crewActive = 0;
 const _cm = new TH.Matrix4(), _cq = new TH.Quaternion(), _ce = new TH.Euler(), _cv = new TH.Vector3(), _cs = new TH.Vector3();
+const CREWPOS = [];
 const HIDEC = new TH.Matrix4().compose(new TH.Vector3(0, -9999, 0), new TH.Quaternion(), new TH.Vector3(0, 0, 0));
 const _cv2 = new TH.Vector3();
 function setPart(im, i, x, y, z, ry, rx, off) {
@@ -585,6 +586,19 @@ function updateCrew() {
     let z = s[1] + jz * 5.5 + Math.cos(ph2 * .27) * 1.6;
     let y = s[2];
     if (y === 0) y = groundY(x, z);
+    /* never standing inside a wall: push out along the wall normal */
+    for (let w2 = 0; w2 < WALLS.length; w2++) {
+      const W = WALLS[w2];
+      if (y < W.y0 - 1.5 || y > W.y0 + W.h) continue;
+      const need = W.t / 2 + 1.1;
+      if (segDist(x, z, W.x1, W.z1, W.x2, W.z2) >= need) continue;
+      /* perpendicular distance decides which side to leave on */
+      const side = (x - W.x1) * W.nx + (z - W.z1) * W.nz;
+      const sg = side >= 0 ? 1 : -1;
+      const t2 = clamp((x - W.x1) * W.ux + (z - W.z1) * W.uz, 0, W.L);
+      x = W.x1 + W.ux * t2 + W.nx * sg * need;
+      z = W.z1 + W.uz * t2 + W.nz * sg * need;
+    }
     /* stay clear of anything with a swing radius */
     for (let e = 0; e < EQUIP.length; e++) {
       const eq = EQUIP[e];
@@ -597,6 +611,7 @@ function updateCrew() {
     const bob = Math.sin(clock * 3.4 + i) * (Math.abs(wob) > .8 ? 1 : .25);
     const yb = y + Math.abs(bob) * .12;
     const work = Math.sin(clock * 2.6 + i * 1.7);
+    CREWPOS[i] = [x, y, z];
     setPart(CREWM.torso, i, x, yb + 4.25, z, face);
     setPart(CREWM.vest, i, x, yb + 4.35, z, face);
     setPart(CREWM.refl, i, x, yb + 4.35, z, face);

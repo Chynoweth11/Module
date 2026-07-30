@@ -126,9 +126,9 @@ const WALLS = [
   wall(58, 0, 30, 0, FF, 11, 'ext', [[8, 12, 0, 8, 'door']]),
   /* ── upper level (tower over the west wing) ── */
   wall(-32, -24, -8, -24, 13.7, 11, 'ext2', [[5, 12, 2.8, 9.6, 'win'], [16, 21, 2.8, 9.6, 'win']]),
-  wall(-8, -24, -8, 2, 13.7, 11, 'ext2', [[9, 20, 2.8, 9.6, 'win']]),
-  wall(-8, 2, -32, 2, 13.7, 11, 'ext2', [[6, 17, 2.8, 9.6, 'win']]),
-  wall(-32, 2, -32, -24, 13.7, 11, 'ext2', [[8, 18, 2.8, 9.6, 'win']]),
+  wall(-8, -24, -8, 24, 13.7, 11, 'ext2', [[9, 20, 2.8, 9.6, 'win'], [30, 41, 2.8, 9.6, 'win']]),
+  wall(-8, 24, -32, 24, 13.7, 11, 'ext2', [[6, 17, 2.8, 9.6, 'win']]),
+  wall(-32, 24, -32, -24, 13.7, 11, 'ext2', [[8, 18, 2.8, 9.6, 'win'], [30, 40, 2.8, 9.6, 'win']]),
   /* ── main level, interior partitions ── */
   wall(-8, -24, -8, 16, FF, 12, 'int', [[16, 22, 0, 8, 'door'], [30, 36, 0, 8.4, 'door']]),
   wall(-8, 16, 18, 16, FF, 12, 'int', [[6, 13, 0, 8.4, 'door']]),
@@ -138,22 +138,21 @@ const WALLS = [
   wall(-32, 2, -20, 2, FF, 12, 'int', []),
   wall(8, 0, 18, 0, FF, 12, 'int', [[3, 8, 0, 8, 'door']]),
   /* ── upper level, interior ── */
-  wall(-20, -24, -20, 2, 13.7, 11, 'int', [[10, 15, 0, 7.6, 'door']]),
+  wall(-20, -24, -20, 24, 13.7, 11, 'int', [[10, 15, 0, 7.6, 'door'], [32, 37, 0, 7.6, 'door']]),
   wall(-32, -10, -8, -10, 13.7, 11, 'int', [[9, 14, 0, 7.6, 'door']])
 ];
 /* slab / floor plates: [x0,z0,x1,z1] */
 const PLATES = [[-32, -24, 30, 24], [-6, 24, 18, 38], [30, -24, 58, 0]];
 /* roof planes: gables described by ridge line + eave */
 const ROOFS = [
-  /* main gable now spans the whole main level. It previously started at
-     x -8, which left the west wing open to the sky; patching that with a
-     second lower gable only moved the hole to the ridge junction. The
-     tower simply penetrates this plane, the way a turret always does. */
-  { x0: -32, x1: 30, zc: 0, half: 24, plate: 13.7, rise: 10.0, ov: 2.6, mat: 'slate', key: 'main' },
+  /* main gable stops against the two-storey west wing. ng skips the gable
+     end that lands inside it; ovx0 kills the rake overhang on that side so
+     the roof does not poke through the tower wall. */
+  { x0: -8, x1: 30, zc: 0, half: 24, plate: 13.7, rise: 10.0, ov: 2.6, ovx0: 0, mat: 'slate', key: 'main', ng: [0] },
   { x0: -6, x1: 18, zc: 31, half: 7, plate: 15.2, rise: 3.4, ov: 2.2, mat: 'slate', key: 'great' },
   { x0: 30, x1: 58, zc: -12, half: 12, plate: 12.2, rise: 4.4, ov: 2.2, mat: 'seam', key: 'garage' },
 ];
-const TOWER = { x0: -32, x1: -8, z0: -24, z1: 2, deck: 24.9, plate: 13.7 };
+const TOWER = { x0: -32, x1: -8, z0: -24, z1: 24, deck: 24.9, plate: 13.7 };
 
 function openingAt(w, s, y) {
   for (let i = 0; i < w.ops.length; i++) {
@@ -234,12 +233,14 @@ function studBays(w, spacing) {
    straight through the site trailer. Everything the landscape has to
    stay clear of lives here so placement can be tested against it.   */
 const KEEPOUT = [
-  { x0: -40, z0: -32, x1: 66, z1: 46, n: 'building' },
+  /* generous enough to clear every eave and rake overhang, not just walls */
+  { x0: -42, z0: -34, x1: 68, z1: 48, n: 'building & roof overhangs' },
   { x0: -12, z0: 34, x1: 54, z1: 62, n: 'terrace & pool' },
   { x0: -14, z0: -44, x1: 8, z1: -22, n: 'entry court' },
   { x0: -78, z0: -12, x1: -44, z1: 24, n: 'laydown & trailer' },
   { x0: -60, z0: -46, x1: -34, z1: -26, n: 'sanitation & bins' },
-  { x0: 26, z0: -36, x1: 60, z1: -20, n: 'garage apron' }
+  { x0: 26, z0: -36, x1: 60, z1: -20, n: 'garage apron' },
+  { x0: 56, z0: 38, x1: 114, z1: 68, n: 'septic tank & leach field' }
 ];
 const DRIVE_PATH = [[-118, 14], [-70, 12], [-40, 2], [-14, -34], [22, -38], [46, -33]];
 function nearDrive(x, z, w) {

@@ -6,6 +6,19 @@
    so the time-lapse always recovers on its own. A subtle FOV
    "breath" and hand-drift keep the frame from feeling locked-off.
    ═════════════════════════════════════════════════════════════════ */
+/* crowns the camera must stay outside of: centre plus a slightly padded
+   radius, built once from the trees that survive to handover */
+const CANOPY = (function () {
+  const out = [];
+  ['conifer', 'leafy'].forEach(k => {
+    if (!G[k]) return;
+    G[k].list.forEach(o => {
+      if (o.x0 !== undefined && o.x0 < 1) return;
+      out.push([o.p[0], o.p[1], o.p[2], Math.max(o.s[0], o.s[2]) * .5 + 2.5]);
+    });
+  });
+  return out;
+})();
 const CAM = {
   az: -1.6, pol: .82, dist: 300, tg: new TH.Vector3(8, 8, 4),
   azG: -1.6, polG: .82, distG: 300, tgG: new TH.Vector3(8, 8, 4),
@@ -95,6 +108,16 @@ function updateCamera(dt) {
   let z = CAM.tg.z + CAM.dist * sp * Math.cos(CAM.az);
   const floor = groundY(x, z) + 2.5;
   if (y < floor) y = floor;
+  /* push out of any permanent tree crown — flying through the inside of a
+     canopy fills the frame with backfaces */
+  for (let i = 0; i < CANOPY.length; i++) {
+    const c = CANOPY[i];
+    const dx = x - c[0], dy = y - c[1], dz = z - c[2];
+    const d = Math.hypot(dx, dy, dz);
+    if (d > c[3] || d < 1e-4) continue;
+    const k = (c[3] - d) / d;
+    x += dx * k; y += dy * k; z += dz * k;
+  }
   camera.position.set(x, y, z);
   camera.lookAt(CAM.tg);
   /* long-lens feel up close, wider when pulled back */

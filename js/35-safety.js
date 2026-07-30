@@ -32,22 +32,26 @@ GD.tape = { c: 0xe8c122, r: .82 };
     for (let k = 0; k < cnt; k++) {
       const u = (k + .5) / cnt;
       const x = lerp(t[0], t[2], u), z = lerp(t[1], t[3], u);
+      /* the service run crosses the perimeter fence line; a shield cannot
+         occupy the same space as a fence panel */
+      if (Math.abs(Math.abs(x) - 84) < 8 || Math.abs(Math.abs(z) - 54) < 8) continue;
       const w = seq(A, A + (B - A) * .4, 12, .3)((n++) % 12);
-      const gy = groundY(x, z);
+      const gy = finalY(x, z);
+      /* the shield sits DOWN IN the trench, lipping just above the edge */
       [-1, 1].forEach(sg => P('steel', {
-        p: [x + Math.cos(ang) * sg * t[4] * .62, gy + 1.6, z - Math.sin(ang) * sg * t[4] * .62],
-        s: [.22, 3.6, 15], r: [0, ang, 0], t0: w[0], t1: w[1], x0: OUT, x1: OUT1,
+        p: [x + Math.cos(ang) * sg * t[4] * .58, gy - 1.3, z - Math.sin(ang) * sg * t[4] * .58],
+        s: [.22, 3.6, 14], r: [0, ang, 0], t0: w[0], t1: w[1], x0: OUT, x1: OUT1,
         l: 'excavation', a: 'grow', m: mBox
       }));
-      [-5, 5].forEach(off => P('steel', {
-        p: [x + Math.sin(ang) * off, gy + 2.6, z + Math.cos(ang) * off],
-        s: [t[4] * 1.3, .3, .3], r: [0, ang, 0], t0: w[0], t1: w[1], x0: OUT, x1: OUT1,
+      [-4.5, 4.5].forEach(off => P('steel', {
+        p: [x + Math.sin(ang) * off, gy - .5, z + Math.cos(ang) * off],
+        s: [t[4] * 1.24, .28, .28], r: [0, ang, 0], t0: w[0], t1: w[1], x0: OUT, x1: OUT1,
         l: 'excavation', a: 'grow', m: mBox
       }));
-      /* egress ladder at every shield */
+      /* egress ladder: bottom in the trench, 3 ft proud of the lip */
       P('lumber', {
-        p: [x + Math.cos(ang) * t[4] * .5, gy + .4, z - Math.sin(ang) * t[4] * .5],
-        s: [.9, 7.2, .3], r: [0, ang, .22], t0: w[0], t1: w[1], x0: OUT, x1: OUT1,
+        p: [x + Math.cos(ang) * t[4] * .46, gy - .3, z - Math.sin(ang) * t[4] * .46],
+        s: [.9, 6.6, .3], r: [0, ang, .12], t0: w[0], t1: w[1], x0: OUT, x1: OUT1,
         l: 'excavation', a: 'rise', m: mLad
       });
     }
@@ -60,7 +64,7 @@ GD.tape = { c: 0xe8c122, r: .82 };
 (function excavationGuard() {
   const A = PH.excavate.t0 - .002, B = PH.excavate.t0 + .02;
   const OUT = PH.slab.t0, OUT1 = PH.slab.t0 + .008;
-  const ring = [[-46, -34], [40, -34], [40, 36], [-46, 36]];
+  const ring = [[-52, -42], [68, -42], [68, 48], [-52, 48]];
   const mFence = { n: 'Excavation barricade', s: 'excavation', d: 'High-visibility barrier fence set back from the edge with warning signage, so nobody walks into an open excavation. Spoil is stockpiled at least 2 ft back from the lip.' };
   let n = 0;
   for (let i = 0; i < 4; i++) {
@@ -72,7 +76,7 @@ GD.tape = { c: 0xe8c122, r: .82 };
       const u = (k + .5) / cnt;
       const x = lerp(a[0], b[0], u), z = lerp(a[1], b[1], u);
       const w = seq(A, B, 20, .3)((n++) % 20);
-      const gy = groundY(x, z);
+      const gy = finalY(x, z);
       P('safety', {
         p: [x, gy + 2.0, z], s: ax ? [L / cnt * .94, 3.4, .12] : [.12, 3.4, L / cnt * .94],
         t0: w[0], t1: w[1], x0: OUT, x1: OUT1, l: 'excavation', a: 'rise', m: mFence
@@ -88,7 +92,7 @@ GD.tape = { c: 0xe8c122, r: .82 };
     const x = -50 + i * 3.4, z = 30 - i * 1.1;
     const w = seq(A, B, 7, .3)(i);
     P('gravel', {
-      p: [x, groundY(x, z) + .6, z], s: [6, 1.2, 9], r: [0, .3, 0],
+      p: [x, finalY(x, z) + .6, z], s: [6, 1.2, 9], r: [0, .3, 0],
       t0: w[0], t1: w[1], x0: OUT, x1: OUT1, l: 'excavation', a: 'grow',
       m: { n: 'Excavation access ramp', s: 'excavation', d: 'Graded ramp no steeper than 3:1 so equipment and crews enter the dig without scrambling the slope.' }
     });
@@ -176,7 +180,7 @@ GD.tape = { c: 0xe8c122, r: .82 };
     for (let b = 0; b < bays; b++) {
       const s = (b + .5) * wl.L / bays;
       const p = ptOn(wl, s, wl.t / 2 + 3.4);
-      const gy = groundY(p[0], p[1]);
+      const gy = finalY(p[0], p[1]);
       const w = seq(A, B, 18, .28)((n++) % 18);
       /* mud sill + base plates */
       P('lumber', {
@@ -222,18 +226,18 @@ GD.tape = { c: 0xe8c122, r: .82 };
     const z = lerp(14, 12, u) + (i % 2 ? 13 : -13);
     const w = seq(A, B, 16, .3)(i);
     P('cone', {
-      p: [x, groundY(x, z) + 1.1, z], s: [2.4, 2.6, 2.4], t0: w[0], t1: w[1], x0: OUT, x1: OUT1,
+      p: [x, finalY(x, z) + 1.1, z], s: [2.4, 2.6, 2.4], t0: w[0], t1: w[1], x0: OUT, x1: OUT1,
       l: 'site', a: 'rise', m: mCone
     });
   }
   [[-98, 26, 'TRUCK ENTRANCE'], [-98, 0, 'HARD HAT AREA']].forEach((s2, i) => {
     const w = seq(A, B, 2, .3)(i);
     P('stake', {
-      p: [s2[0], groundY(s2[0], s2[1]) + 3, s2[1]], s: [.3, 6, .3], t0: w[0], t1: w[1], x0: OUT, x1: OUT1,
+      p: [s2[0], finalY(s2[0], s2[1]) + 3, s2[1]], s: [.3, 6, .3], t0: w[0], t1: w[1], x0: OUT, x1: OUT1,
       l: 'site', a: 'rise', m: { n: s2[2] + ' sign', s: 'site', d: 'Posted at the entrance: PPE requirement, authorised personnel only, and the emergency contact list.' }
     });
     P('safety', {
-      p: [s2[0], groundY(s2[0], s2[1]) + 6.6, s2[1]], s: [4.4, 3, .18], t0: w[0], t1: w[1], x0: OUT, x1: OUT1,
+      p: [s2[0], finalY(s2[0], s2[1]) + 6.6, s2[1]], s: [4.4, 3, .18], t0: w[0], t1: w[1], x0: OUT, x1: OUT1,
       l: 'site', a: 'grow', m: { n: s2[2] + ' sign', s: 'site', d: 'Posted at the entrance: PPE requirement, authorised personnel only, and the emergency contact list.' }
     });
   });
@@ -272,7 +276,7 @@ GD.fpost = { c: 0x8c949b, r: .6, m: .45, g: 'cyl' };
       if (i === 0 && k === Math.round(cnt * .16)) continue;    /* controlled gate */
       const u = (k + .5) / cnt;
       const x = lerp(a[0], b[0], u), z = lerp(a[1], b[1], u);
-      const gy = groundY(x, z);
+      const gy = finalY(x, z);
       const seg = L / cnt;
       const w = seq(A, B, 26, .3)((n++) % 26);
       P('fence', {
