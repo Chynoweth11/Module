@@ -146,7 +146,11 @@ const snowCover = day => sat(smooth((day - 250) / 22) - smooth((day - 302) / 26)
 /* ── runtime state ── */
 let T = 0, playing = false, speed = 1, lastT = -1, xformDirty = true;
 let reveal = 0, cutMode = 'auto';
-const flags = { sun: true, wx: true, people: true };
+/* Defaults chosen so the first frame anyone sees is legible. Full day/night
+   cycling put nearly a quarter of the timeline in the dark and weather spent
+   a third of it behind snow — both are worth having, neither is worth having
+   switched on before you have asked for it. */
+const flags = { night: false, wx: false, people: true };
 const PLAY_SECONDS = 112;
 let clock = 0;
 

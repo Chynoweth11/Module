@@ -7,6 +7,17 @@ let head = run.slice(0, run.indexOf('if (ok) {')).replace(/^const (fs|path|vm) =
   .replace("require('./mock-three.js')", 'require(path.join(D, "mock-three.js"))');
 const sandbox = (new Function('fs', 'path', 'vm', 'require', 'D', head + '\nreturn sandbox;'))(fs, path, vm, require, __dirname);
 
+/* Static check, before anything runs: the two modules that push geometry at
+   load time must never sample groundY(), because at load time it returns the
+   surface as it was BEFORE grading. Runtime tick() callbacks in 50-actors are
+   a different matter — those correctly follow the live grade. */
+const staticBad = [];
+['40-build.js', '35-safety.js'].forEach(f => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'js', f), 'utf8');
+  const n = (src.match(/groundY\(/g) || []).length;
+  if (n) staticBad.push(f + ' samples groundY() ' + n + ' time(s) at load — use finalY()');
+});
+
 const r = vm.runInContext(`(function () {
   var o = { bad: [], warn: [], perf: [] };
 
@@ -98,6 +109,6 @@ const r = vm.runInContext(`(function () {
 })()`, sandbox);
 
 const show = (t, a) => { console.log(''); console.log(t); a.length ? a.forEach(x => console.log('   - ' + x)) : console.log('   none'); };
-show('DEFECTS', r.bad);
+show('DEFECTS', staticBad.concat(r.bad));
 show('WARNINGS', r.warn);
 show('PERFORMANCE', r.perf);

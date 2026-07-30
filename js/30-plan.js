@@ -250,6 +250,12 @@ function nearDrive(x, z, w) {
   }
   return false;
 }
+/* Clearance for a planting, given its height and species. Callers used to
+   pass their own pad and forgot the crown, which put trees through walls
+   twice. This works the radius out so they cannot. */
+function plantClear(x, z, h, conifer) {
+  return siteClear(x, z, 5 + h * (conifer ? .24 : .34));
+}
 function siteClear(x, z, pad) {
   pad = pad === undefined ? 4 : pad;
   for (let i = 0; i < KEEPOUT.length; i++) {

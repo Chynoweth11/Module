@@ -39,8 +39,8 @@
     <div class="grp">
       <label>Playback speed</label>
       <div class="pills" id="ctSpd">
-        <button data-s="0.5">0.5&times;</button><button data-s="1" class="on">1&times;</button>
-        <button data-s="2">2&times;</button><button data-s="4">4&times;</button>
+        <button data-s="1" class="on">1&times;</button><button data-s="2">2&times;</button>
+        <button data-s="4">4&times;</button>
       </div>
     </div>
     <div class="grp">
@@ -50,9 +50,9 @@
       </div>
     </div>
     <div class="grp" style="padding:3px">
-      <div class="sw on" data-f="sun"><span>Day &amp; night</span><i></i></div>
-      <div class="sw on" data-f="wx"><span>Weather</span><i></i></div>
       <div class="sw on" data-f="people"><span>Crew &amp; equipment</span><i></i></div>
+      <div class="sw" data-f="wx"><span>Weather</span><i></i></div>
+      <div class="sw" data-f="night"><span>Day &amp; night cycle</span><i></i></div>
     </div>
     <div class="grp">
       <button class="act" id="ctReset">Reset camera</button>
@@ -63,10 +63,7 @@
   <div class="bar">
     <div class="meta">
       <div class="phase"><em id="ctNum">01</em><b id="ctPhase">Contract &amp; design</b></div>
-      <div class="stamp">
-        <span class="dt" id="ctDate">&mdash;</span>
-        <span class="pc"><i id="ctPct" style="font-style:normal">0</i><s>%</s></span>
-      </div>
+      <div class="stamp"><span class="dt" id="ctDate">&mdash;</span></div>
     </div>
     <div class="row">
       <button class="play" id="ctPlay" aria-label="Play"><svg viewBox="0 0 24 24" id="ctIcon"><path d="M7 4l13 8-13 8z"/></svg></button>

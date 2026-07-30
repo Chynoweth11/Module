@@ -12,13 +12,22 @@ npm start        # serves on http://localhost:8080 and opens your browser
 Or just open `index.html` directly — three.js is vendored locally in
 `vendor/`, so no network is required at all.
 
+## Defaults
+The default view is deliberately plain: one slow daylight arc across the whole
+412 days, no weather, crew and equipment on. The sun climbs as the build
+progresses, so shadows start long and shorten towards handover, and no frame
+is ever dark. Full day/night cycling and weather are both still there — they
+are switches in the settings sheet rather than the first thing you see. Nearly
+a quarter of the timeline used to be unreadably dark and a third of it sat
+behind snow; neither is worth having switched on before you have asked for it.
+
 ## Controls
 - **Play / space** — run the 412‑day schedule (≈112 s at 1×)
 - **Drag** — orbit · **wheel / pinch** — zoom (the shot recovers on its own)
 - **Scrub** the timeline; hover it for day + phase
 - **Click** any piece of the building, equipment or material stack to
   identify it and read how it's actually built
-- **Gear** — playback speed, cutaway mode, sun cycle, weather, crew toggles
+- **Gear** — playback speed, cutaway, crew, weather, day/night, reset camera
 - **← / →** — step 2 days (shift: 14)
 
 ## Files

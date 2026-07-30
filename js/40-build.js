@@ -1266,7 +1266,7 @@
     const x = 12 + Math.cos(a) * r, z = 6 + Math.sin(a) * r * .85;
     const h = 17 + R() * 13;
     /* clear the crown radius, not just the trunk */
-    if (!siteClear(x, z, 7 + h * .24)) continue;
+    if (!plantClear(x, z, h, true)) continue;
     const t = seq(A + S * .58, B, 18, .18)(placed);
     const gy = finalY(x, z);
     P('trunk', {
@@ -1310,7 +1310,7 @@
     /* trees used to land inside the trailer, on the terrace and through the
        walls — anything that survives the clearing has to hold its crown
        clear of the finished building, not just its trunk */
-    if (!inPad && !siteClear(x, z, 5 + h * (conif ? .24 : .34))) continue;
+    if (!inPad && !plantClear(x, z, h, conif)) continue;
     n++;
     const rem = inPad ? { x0: PH.clearing.t0 + .004 + rr() * .012, x1: PH.clearing.t0 + .02 + rr() * .012 } : {};
     const mt = inPad

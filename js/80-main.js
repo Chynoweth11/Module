@@ -25,11 +25,12 @@ function updateSky(dt) {
 
   /* sun elevation: continuous cycles when the sun toggle is on,
      otherwise pinned to a pleasant mid-morning */
-  /* Half the cycle used to be night, so nearly half of every playthrough
-     was unreadably dark. Warping the phase gives a long day, a quick
-     sunset, a short night and a quick dawn — the way a time-lapse of a
-     jobsite actually reads. */
-  const raw = flags.sun ? ((T * SUN_CYCLES) % 1) : .18;
+  /* Default: ONE slow arc from mid-morning to mid-afternoon across the whole
+     412 days. The sun climbs as the build progresses, so shadows start long
+     and shorten towards handover, and no frame is ever dark. With the
+     day/night option on, the warped multi-cycle behaviour returns — a long
+     day, a quick sunset, a short night and a quick dawn. */
+  const raw = flags.night ? ((T * SUN_CYCLES) % 1) : (.055 + T * .30);
   const DAYFRAC = .76;
   const ph = raw < DAYFRAC ? (raw / DAYFRAC) * .5 : .5 + ((raw - DAYFRAC) / (1 - DAYFRAC)) * .5;
   const ang = ph * TAU;
@@ -144,7 +145,6 @@ function syncTime() {
   UI.phase.textContent = ph.name;
   const dt2 = dateAt(T);
   UI.date.textContent = MON[dt2.getMonth()] + ' ' + dt2.getDate() + ', ' + dt2.getFullYear();
-  UI.pct.textContent = Math.round(T * 100) + '%';
   UI.fill.style.width = (T * 100) + '%';
   UI.knob.style.left = (T * 100) + '%';
   mkEls.forEach((el, i) => el.classList.toggle('hit', MILESTONES[i].d <= T * DAYS + .5));

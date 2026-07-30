@@ -7,7 +7,7 @@ const UI = {
   play: $('ctPlay'), icon: $('ctIcon'), track: $('ctTrack'), rail: $('ctRail'),
   fill: $('ctFill'), knob: $('ctKnob'), hint: $('ctHint'), gear: $('ctGear'),
   set: $('ctSet'), num: $('ctNum'), phase: $('ctPhase'), date: $('ctDate'),
-  pct: $('ctPct'), tag: $('ctTag'), tagN: $('ctTagN'), tagD: $('ctTagD'),
+  tag: $('ctTag'), tagN: $('ctTagN'), tagD: $('ctTagD'),
   tagX: $('ctTagX'), boot: $('ctBoot'), bootMsg: $('ctBootMsg'), bootBar: $('ctBootBar'),
   mile: $('ctMile'), mileTxt: $('ctMileTxt'), spd: $('ctSpd'), cut: $('ctCut'),
   tips: $('ctTips'), reset: $('ctReset')
